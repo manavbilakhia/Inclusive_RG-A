@@ -10,7 +10,7 @@
 #include <TH2D.h>
 #include <TKey.h>
 
-const std::string OUTPUT_FOLDER = "/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/analysis_out/";
+const std::string OUTPUT_FOLDER = "../analysis_out/";
 
 ROOT::RDataFrame convert_ttrees_to_rdataframe(const std::string &root_file_path) {
     TFile *file = TFile::Open(root_file_path.c_str(), "READ");
@@ -66,8 +66,8 @@ void plot_2d_W_vs_QSquared(ROOT::RDF::RNode rdf) {
     std::cout << "Saved 2D histogram as W_vs_Q2.png" << std::endl;
 }
 
-int main() {
-    std::string root_file_path = "/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest.root";
+int TTree2RDF() {
+    std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest.root";
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;

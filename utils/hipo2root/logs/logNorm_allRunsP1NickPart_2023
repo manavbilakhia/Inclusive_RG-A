@@ -2132,3 +2132,48 @@ Accumulated charge post QA 2: qadb_reader::getChargeForRunlist Reading Run 5190
 qadb_reader::getChargeForRunlist Reading Run 5191
 86529.9 nC
 Accumulated charge good 2: 86529.9 nC
+   ------------------------------------------------------------------
+  | Welcome to ROOT 6.30/04                        https://root.cern |
+  | (c) 1995-2024, The ROOT Team; conception: R. Brun, F. Rademakers |
+  | Built for linuxx8664gcc on Feb 14 2024, 15:53:40                 |
+  | From heads/master@tags/v6-30-04                                  |
+  | With g++ (GCC) 11.4.1 20230605 (Red Hat 11.4.1-2)                |
+  | Try '.help'/'.?', '.demo', '.license', '.credits', '.quit'/'.q'  |
+   ------------------------------------------------------------------
+
+
+Processing ana12GeVShortFCQA.C...
+isHipo: 1
+HipoChain::FirstFile() -1 out of 2
+Warning , hipo::schema getEntryOrder(const char *name) item :px not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :py not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :pz not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :edge not found, for bank REC::Traj data for this item is not valid 
+clas12databases::initQA pass = pass1 run =5190
+HipoChain::NextFile() 0 out of 2
+HipoChain::FirstFile() 0 out of 2
+Warning , hipo::schema getEntryOrder(const char *name) item :px not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :py not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :pz not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :edge not found, for bank REC::Traj data for this item is not valid 
+for file /cache/clas12/rg-a/production/recon/fall2018/torus-1/pass1/v0/dst/train/skim4/skim4_005190.hipo
+	 read 4353324 events from which 0 passed filtering conditions.
+	 accumulated charge past QA: 0 nC
+HipoChain::NextFile() 1 out of 2
+HipoChain::FirstFile() 1 out of 2
+Warning , hipo::schema getEntryOrder(const char *name) item :px not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :py not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :pz not found, for bank RECFT::Particle data for this item is not valid 
+Warning , hipo::schema getEntryOrder(const char *name) item :edge not found, for bank REC::Traj data for this item is not valid 
+clas12databases::initQA pass = pass1 run =5191
+processed 1M events
+processed 2M events
+for file /cache/clas12/rg-a/production/recon/fall2018/torus-1/pass1/v0/dst/train/skim4/skim4_005191.hipo
+	 read 10059433 events from which 2049285 passed filtering conditions.
+	 accumulated charge past QA: 86529.9 nC
+HipoChain::NextFile() 2 out of 2
+HipoChain::FirstFile() 2 out of 2
+Accumulated charge post QA 2: qadb_reader::getChargeForRunlist Reading Run 5190
+qadb_reader::getChargeForRunlist Reading Run 5191
+86529.9 nC
+Accumulated charge good 2: 86529.9 nC
