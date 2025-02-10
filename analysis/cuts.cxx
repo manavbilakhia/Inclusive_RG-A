@@ -1,10 +1,25 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <TFile.h>
+#include <TTree.h>
+#include <ROOT/RDataFrame.hxx>
+#include <TLorentzVector.h>
+#include <TCanvas.h>
+#include <TH1D.h>
+#include <TH2D.h>
+#include <TKey.h>
+#include <fstream>
+
+
 // IT IS IMPORTANT TO SET IT EVERY TIME DF APPLIES THE CUTS
 // IT IS USED FOR SF CUT ONLY (SO FAR)
+
 bool isMC = false;
 
 //Root file and plot path 
-string filePath = "files/";
-string plotPath = "files/";
+//string filePath = "files/";
+//string plotPath = "files/";
 
 //Mass and Energy parameters
 const double m_p  = 0.93827208816;          //proton mass
@@ -14,7 +29,7 @@ const double m_pi = 0.134977;               //pi0 mass
 
 /////////////////// get 4-momentum, apply mom corr if it is data: ///////////////////////
 
-auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int corPip, int corPim, int corPro){
+inline auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int corPip, int corPim, int corPro){
     
     // 'Px'/'Py'/'Pz'   ==> Corresponds to the Cartesian Components of the particle momentum being corrected
     // 'sec'            ==> Corresponds to the Forward Detector Sectors where the given particle is detected (6 total)
@@ -353,3 +368,62 @@ auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int corPip
 
     return dp/pp;
 };
+// sector should be 1:6
+inline auto Get4mom_corr(double ex, double ey, double ez, double sec_mom_corr){
+  if (isMC) return (TLorentzVector) {ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e)};
+  else{
+     auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 3, 0, 0, 0) + 1;
+     double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
+     TLorentzVector elec_corrected(fe*ex, fe*ey, fe*ez, energy);   
+     return elec_corrected;  
+  }
+}
+
+//cutLevel = 1 should be used in all the cuts. O,2 were used for systematic studies to vary the cuts.
+
+//Sectors# are 0-5 if I do not spicify otherwise
+
+
+// theta and phi in deg:
+//float toRD = 57.2958; // 360/2pi
+//float thetaEMeasured = p4_ele[i].Theta()*toRD;
+
+// To get Phi you do:
+//float phiDC = p4_ele[i].Phi()*toRD;
+//if (phiDC < 0 && sectorElectron > 0)  phiDC = phiDC + 360. - sectorElectron * 60.;
+// else phiDC=phiDC - sectorElectron * 60.;
+
+// Cut out an odd structure in pass-1 should not be needed for pass-2
+bool phiSpikeCut(const double phi, const double theta, const int sec, const int cutLevel){
+
+	double shiftSys = 0;
+	if (cutLevel == 0) shiftSys = 1.;
+	if (cutLevel == 2) shiftSys = -1.;
+    
+    // Sec 1:
+    if (sec == 0){
+        if (theta > (13.5 + shiftSys) && theta < (27 - shiftSys))
+            if (phi > (-5 + shiftSys) && phi < (0 - shiftSys))
+                return false;
+    }
+    // Sec 4:
+    if (sec == 3){
+        if (theta > (13.5 + shiftSys) && theta < (29.5 - shiftSys))
+            if (phi > (-6 + shiftSys)&& phi < (-1 - shiftSys))
+                return false;
+    }
+    return true; 
+    
+}
+
+
+// Cut on Vertex, 
+//cutLevel = 1 should be used
+//use   out_tree.Branch("p4_ele_vz", &p4_ele_vz);
+bool CutVz(const float _vz, const int cutLevel){
+    float minVz[3] = {-8.5, -8, -7.5};
+    float maxVz[3] = {2.5,2,1.5};
+
+    return (_vz > minVz[cutLevel] && _vz < maxVz[cutLevel]);
+}
+
