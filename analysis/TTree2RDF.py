@@ -1,8 +1,6 @@
 import ROOT
 import math
 
-M_P = 0.938  # Proton mass in GeV/c^2
-E_BEAM = 10.6  # Beam energy in GeV
 OUTPUT_FOLDER = "/w/hallb-scshelf2102/clas12/bulgakov/projects/Inclusive_RG-A/analysis_out/"
 
 def main():
