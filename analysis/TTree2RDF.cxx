@@ -50,7 +50,7 @@ ROOT::RDataFrame convert_ttrees_to_rdataframe(const std::string &root_file_path)
 // Use ROOT::RDF::RNode instead of RDataFrame& to fix type mismatch
 
 void plot_1d_abs_mom(ROOT::RDF::RNode rdf) {
-    TCanvas canvas("c1", "Absolute Momentum", 800, 600);
+    TCanvas canvas("c1", "Absolute Momenta", 800, 600);
     auto hist1 = rdf.Histo1D(ROOT::RDF::TH1DModel("Absolute Momenta", "Absolute Momenta; |P| (GeV); Events", 200, 0, 10), "el_abs_mom");
     auto hist2 = rdf.Histo1D(ROOT::RDF::TH1DModel("Absolute Momenta corr", "Absolute Momenta corr; |P| (GeV); Events", 200, 0, 10), "el_abs_mom_corr");
     hist1->SetLineColor(kRed);
