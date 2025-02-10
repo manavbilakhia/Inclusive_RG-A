@@ -1,10 +1,10 @@
 import ROOT
 import math
 
-OUTPUT_FOLDER = "/w/hallb-scshelf2102/clas12/bulgakov/projects/Inclusive_RG-A/analysis_out/"
+OUTPUT_FOLDER = "/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/analysis_out/"
 
 def main():
-    root_file_path = "/w/hallb-scshelf2102/clas12/bulgakov/projects/Inclusive_RG-A/data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest.root"
+    root_file_path = "/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest.root"
     rdf = convert_ttrees_to_rdataframe(root_file_path)
     if rdf is None:
         print("Error: Could not create RDataFrame.")

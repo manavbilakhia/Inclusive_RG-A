@@ -172,7 +172,7 @@ void processHipo(TString inputFile){
   vector<int> compSci;
     
 
-  TFile outFile(Form("/w/hallb-scshelf2102/clas12/bulgakov/projects/Inclusive_RG-A/data/outH2R_test/%s_QADBtest.root",inputFile.Data()), "recreate");
+  TFile outFile(Form("/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/data/outH2R_test/%s_QADBtest.root",inputFile.Data()), "recreate");
   TTree out_tree("out_tree","out_tree");
     
   //electrons                                                                                                                                                                                                 
@@ -358,7 +358,8 @@ if (isData) config_c12->addAtLeastPid(11,1);
     // auto particles = c12->getDetParticles();
     auto electron=c12->getByID(11);
       
-     
+    if (electron.size()==0) continue; // discard events with no electrons
+
     for (int u = 0; u < electron.size(); u++){
       TVector3 rotVector(electron[u]->cal(PCAL)->getHx(), electron[u]->cal(PCAL)->getHy(), electron[u]->cal(PCAL)->getHz());
       rotVector.RotateZ(-60*(electron[u]->getSector()-1)/57.2958);

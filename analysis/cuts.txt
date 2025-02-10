@@ -1,0 +1,438 @@
+
+//cutLevel = 1 should be used in all the cuts. O,2 were used for systematic studies to vary the cuts.
+
+//Sectors# are 0-5 if I do not spicify otherwise
+
+
+// theta and phi in deg:
+//float toRD = 57.2958; // 360/2pi
+//float thetaEMeasured = p4_ele[i].Theta()*toRD;
+
+// To get Phi you do:
+//float phiDC = p4_ele[i].Phi()*toRD;
+//if (phiDC < 0 && sectorElectron > 0)  phiDC = phiDC + 360. - sectorElectron * 60.;
+// else phiDC=phiDC - sectorElectron * 60.;
+
+// Cut out an odd structure in pass-1 should not be needed for pass-2
+bool phiSpikeCut(const double phi, const double theta, const int sec, const int cutLevel){
+
+	double shiftSys = 0;
+	if (cutLevel == 0) shiftSys = 1.;
+	if (cutLevel == 2) shiftSys = -1.;
+    
+    // Sec 1:
+    if (sec == 0){
+        if (theta > (13.5 + shiftSys) && theta < (27 - shiftSys))
+            if (phi > (-5 + shiftSys) && phi < (0 - shiftSys))
+                return false;
+    }
+    // Sec 4:
+    if (sec == 3){
+        if (theta > (13.5 + shiftSys) && theta < (29.5 - shiftSys))
+            if (phi > (-6 + shiftSys)&& phi < (-1 - shiftSys))
+                return false;
+    }
+    return true; 
+    
+}
+
+
+// Cut on Vertex, 
+//cutLevel = 1 should be used
+//use   out_tree.Branch("p4_ele_vz", &p4_ele_vz);
+bool CutVz(const float _vz, const int cutLevel){
+    float minVz[3] = {-8.5, -8, -7.5};
+    float maxVz[3] = {2.5,2,1.5};
+
+    return (_vz > minVz[cutLevel] && _vz < maxVz[cutLevel]);
+}
+
+// Cut to remove bad PMTs from CALs
+// SECTOR IS 1:6, DO NOT FORGRT TO ADD TO SECTOR VARIABLE!!!!!
+// Cut level = 1
+//  out_tree.Branch("pcalHX", &pcalHX);
+//  out_tree.Branch("pcalHY", &pcalHY);
+//  out_tree.Branch("pcalHZ", &pcalHZ);
+// and etc.
+
+bool BadElementKnockOut(double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int sector, int cutLevel){
+    
+    double widthChange = 0.25;
+    if (cutLevel == 0)  widthChange = -0.25;
+    if (cutLevel == 2)  widthChange = 0.75;
+    
+    
+    //MANUAL LINES NOT FROM CCDB, I LOOKED DATA/SIM Plots and found abnormal behav.
+    
+    float pcalManualParams[6][2] = {{107.2766, -10602.9779}, //S2
+                                    {98.9667, -10262.0167}, //S2
+                                    
+        
+                                    {98.0644, 5825.4023}, //S5
+                                    {99.9337, 5098.3456}, //S5
+                                    
+                                     //S6
+                                    {0.4547, -275.9317},
+                                    {0.4547, -285.9317}}; //S6
+    
+    if (sector == 6){
+        double k = tan(-30.6*3.1415/180);
+        double b = -185;
+        // wire swap remove
+        if ((isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange} , {k, b - widthChange - 2}) &&
+               isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange - 8.3} , {k, b - widthChange - 8.3 - 2.2})
+               ) == false ) return false;
+        
+        
+        float k1 = pcalManualParams[4][0];
+        float b1 = pcalManualParams[4][1];
+        float k2 = pcalManualParams[5][0];
+        float b2 = pcalManualParams[5][1];
+        
+        // manual line
+        if (isBetweenOfLines(Hx_pcal, Hy_pcal,  {k1, b1 + widthChange}, {k2, b2 - widthChange})) return false;
+        
+        return true;
+    }
+    
+    
+    //PCAL
+    //Sec 2, Lay=1, Comp = 24
+    //Sec 2, Lay=2,Comp = 43
+    //Sec 3, Lay=2,Comp = 6
+    //Sec 3, Lay=3, Comp = 41
+    //Sec 4, Lay=1, Comp = 60
+    //Sec 4, Lay=2, Comp = 20
+
+    float linesParams[8][2] = {{-0.5774, 156.9137}, // REMOVED MAY 2023 Sec 2, Lay=1, Comp = 24
+                                {-0.5878, 152.4101}, // REMOVED MAY 2023 Sec 2,
+                                {0.5897, 120.7937}, // KEEP MAY 2023 
+                                {0.5913, 114.3872}, // KEEP MAY 2023
+                                
+                                //{-82.3095, -24692.8538}, // -302.38 - -313.71
+                                //{114.2353, 36036.7541}, //
+                                {-0.5934, 129.9189},// REMOVED MAY 2023 Sec 3, Lay=3, Comp = 41
+                                {-0.5899, 125.2137},// REMOVED MAY 2023
+                                
+                                //{1484.1452, 455714.6153}, // -306.95 - 315.36
+                                //{-2214.6082, -698249.0095}, // 
+                                {0.7971, 288.6657},// REMOVED MAY 2023 Sec 4, Lay=2, Comp = 20
+                                {0.7848, 277.9871}};// REMOVED MAY 2023 Sec 4, Lay=2, Comp = 20
+    
+
+    
+    //ECIN
+    // Sec 1, Lay=5,Comp = 8
+    // Sec 1, Lay=6,Comp = 19
+    // Sec 1, Lay=6,Comp = 21
+    // Sec 4, Lay=5,Comp = 13
+    // Sec 4, Lay=5,Comp = 15
+    // Sec 5, Lay=5,Comp = 16
+    
+
+    // ECOUT
+    // Sec 1, Lay=7,Comp = 32
+    // Sec 1, Lay=9,Comp = 19
+    // Sec 1, Lay=9,Comp = 21
+    // Sec 1, Lay=9,Comp = 24
+    // Sec 5, Lay=7,Comp = 18
+    
+    float ecoutParams[8][2] = {//{351.542, -129188.6636}, // replace by 357.14 - 367.99
+                                //{-1656.4878, 591767.5446}, // reverse
+                                {0.5765, -222.5612},
+                                {0.5618, -233.3443},
+                                {0.572, -199.4151},
+                                {0.5688, -210.0406},
+                                {0.5684, -165.1428},
+                                {0.5669, -175.8632},
+                                {-0.5841, -252.1105}, // KEEP
+                                {-0.5775, -263.2072}}; // KEEP
+                                
+    
+    // SECTOR 1
+    if (sector == 1){
+        
+        double k = tan(29.5*3.1415/180);
+        double b = -92;
+        if ( (isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange} , {k, b - widthChange - 2.4}) &&
+                isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange - 9.1} , {k, b - widthChange - 9.1 - 2.4}) &&
+                isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange - 127} , {k, b - widthChange - 127 - 2.4}) &&
+                isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange - 127 - 8} , {k, b - widthChange -127 - 8 - 2.4}) 
+               ) == false) return false;
+        
+        
+        return true;
+        
+    }
+
+    
+    
+    // SECTOR 2
+    if (sector == 2){
+     
+        float k1 = linesParams[2][0];
+        float b1 = linesParams[2][1];
+        float k2 = linesParams[3][0];
+        float b2 = linesParams[3][1];
+        
+        if (isBetweenOfLines(Hx_pcal, Hy_pcal,  {k1, b1 + widthChange}, {k2, b2 - widthChange})) return false;
+        
+        k1 = pcalManualParams[0][0];
+        b1 = pcalManualParams[0][1];
+        k2 = pcalManualParams[1][0];
+        b2 = pcalManualParams[1][1];
+        
+        if (isBetweenOfLines(Hx_pcal, Hy_pcal,  {k1, b1 + widthChange}, {k2, b2 - widthChange})) return false;
+        
+        return true;
+        
+    }
+    
+    // SECTOR 3
+    if (sector == 3){
+    
+    	if (Hx_pcal > -313.71 && Hx_pcal <  -302.38) return false;
+        
+        return true;
+        
+    }
+    
+    // SECTOR 4
+    if (sector == 4){
+    
+        double k = tan(-29.6*3.1415/180);
+        double b = -232.8;
+        
+        if (Hx_pcal > -127.5 && Hx_pcal < -122.5) return false;
+        return (isOutOfLines(Hx_pcal, Hy_pcal, {k, b + widthChange} , {k, b - widthChange - 3.5}));
+    
+        
+        return true;
+        
+    }
+    
+    // SECTOR 5
+    if (sector == 5){
+        
+        float k1 = ecoutParams[6][0];
+        float b1 = ecoutParams[6][1];
+        float k2 = ecoutParams[7][0];
+        float b2 = ecoutParams[7][1];
+        
+        //ecout July 2023
+        if (isBetweenOfLines(Hx_ecout, Hy_ecout,  {k1, b1 + widthChange}, {k2, b2 - widthChange})) return false;
+       
+        k1 = pcalManualParams[2][0];
+        b1 = pcalManualParams[2][1];
+        k2 = pcalManualParams[3][0];
+        b2 = pcalManualParams[3][1];
+        
+        if (isBetweenOfLines(Hx_pcal, Hy_pcal,  {k1, b1 + widthChange}, {k2, b2 - widthChange})) return false;
+        
+        return true;
+        
+    }
+    
+    return true;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// DC FID CUT 
+bool CutDCfid(const DCXY& dc, int sec, const int cutLevel){
+    return (
+         DCFidXY(dc.r1X, dc.r1Y, 1, sec + 1, cutLevel) && 
+         DCFidXY(dc.r2X, dc.r2Y, 2, sec + 1, cutLevel) &&
+         DCFidXY(dc.r3X, dc.r3Y, 3, sec + 1, cutLevel)
+         );
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+///INPUT FOR DC:
+
+void rotVect(TVector3& resVector3, const int sec){
+	resVector3.RotateZ(-60*sec/57.2958);
+	resVector3.RotateY(-25/57.2958);
+}
+
+
+//Var. come from:
+//  out_tree.Branch("dcXR1", &dcXR1);
+//  out_tree.Branch("dcYR1", &dcYR1);
+//  out_tree.Branch("dcYZ1", &dcZR1);
+    
+//  out_tree.Branch("dcXR2", &dcXR2);
+//  out_tree.Branch("dcYR2", &dcYR2);
+//  out_tree.Branch("dcZR2", &dcZR2);
+    
+//  out_tree.Branch("dcXR3", &dcXR3);
+//  out_tree.Branch("dcYR3", &dcYR3);
+//  out_tree.Branch("dcZR3", &dcZR3);
+
+
+
+// DC rotating                        
+TVector3 dcR1Vector3(dc_XR1[i], dc_YR1[i], dc_ZR1[i]);
+TVector3 dcR2Vector3(dc_XR2[i], dc_YR2[i], dc_ZR2[i]);
+TVector3 dcR3Vector3(dc_XR3[i], dc_YR3[i], dc_ZR3[i]);
+                        
+rotVect(dcR1Vector3, sectorElectron);
+rotVect(dcR2Vector3, sectorElectron);
+rotVect(dcR3Vector3, sectorElectron);
+                        
+DCXY dcParam = {dcR1Vector3.X(), dcR1Vector3.Y(),
+                dcR2Vector3.X(), dcR2Vector3.Y(),
+                dcR3Vector3.X(), dcR3Vector3.Y() };
+                                        
+                                        
+
+///END INPUT FOR DC:
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+bool DCFidXY(float X, float Y, int region, int sector, int cutLevel){
+    
+    float cutLimit = 0;
+    float angle = 0.495;
+    
+    if (region == 1){
+        cutLimit = 72;
+        angle = 0.50;
+       }
+    if (region == 2){
+        cutLimit = 114;
+        angle = 0.505;
+       }
+    if (region == 3){
+        cutLimit = 180;
+	}
+	
+	cutLimit -= 2*(cutLevel - 1) * region * 0.6;
+	
+    return (Y >= -angle*(X + cutLimit) && Y <= angle*(X + cutLimit));
+}
+
+////////////////////////////////
+// sampling fraction cut:
+
+/// Input for SF cut (deposited energy divided by momentum):
+/// sf = kin.calEnerg / p4_electron.P(), Edep = kin.calEnerg,
+// Edep = kin.calEnerg = ecout_E[i] + ecin_E[i] + pcal_E[i]
+// p4_electron is scattered electron.
+
+// Energy comes from:
+//  out_tree.Branch("pcalE", &pcalE);
+//  out_tree.Branch("ecinE", &ecinE);
+//  out_tree.Branch("ecoutE", &ecoutE);
+
+bool SfCutValerii_Edepos(const double sf,const double Edep,const int sec,const int cutLevel,const int isData){
+    double SigmaRange = 3.5;
+    double sigmaRangeChange = 0.5;
+    
+    if (cutLevel == 0) SigmaRange += sigmaRangeChange;
+        
+    if (cutLevel == 2) SigmaRange -= sigmaRangeChange;    
+    
+    double meanAll[3][7] = {{0.28617, 0.27974, 0.27476, 0.27264, 0.27074, 0.27575, 0.29045},
+    						{-0.04047, -0.03786, -0.03409, -0.03304, -0.03211, -0.03394, -0.03974},
+    						{-0.00296, -0.00118, -0.00141, -0.00067, 0.00051, -0.00143, -0.00286}};
+    						
+    double sigmaAll[3][7] = {{0.0172, 0.01878, 0.017, 0.01566, 0.01586, 0.01684, 0.01485},
+    						 {-0.00122, -0.00296, -0.00224, 0.00028, -0.00135, -0.00185, -0.00053},
+    						 {-0.0012, -0.00135, -0.00129, -0.00131, -0.00092, -0.00116, -0.00137 }};
+    
+    
+    if (isData){
+
+        
+        double mean = meanAll[0][sec] + meanAll[1][sec] / Edep + meanAll[2][sec]/ ( Edep * Edep);
+        double sigma = sigmaAll[0][sec] + sigmaAll[1][sec] / Edep + sigmaAll[2][sec] / ( Edep * Edep);
+        
+        double lowSFcut = mean - sigma * SigmaRange;
+        
+        return sf > lowSFcut;
+    }
+    else{
+
+        double mean = meanAll[0][6]  + meanAll[1][6]  / Edep + meanAll[2][6] / ( Edep * Edep);
+        double sigma = sigmaAll[0][6] + sigmaAll[1][6]  / Edep + sigmaAll[2][6]  / ( Edep * Edep);
+        
+        double lowSFcut = mean - sigma * SigmaRange;
+        
+        return sf > lowSFcut;
+    }
+    return 0;
+}
+
+
+// PCAL FID CUT 
+// uses 
+//  out_tree.Branch("pcalLu", &pcalLu);
+//  out_tree.Branch("pcalLv", &pcalLv);
+//  out_tree.Branch("pcalLw", &pcalLw);    
+
+		bool PCALFid_VW(float V, float W, float U, int cutLevel){
+		
+			if (cutLevel < 0 || cutLevel > 2) throw out_of_range("wrong CutLevel pcal FID, VW");
+		
+			float cutValues[3] = {17,19,22};
+			float cutValuesU[3] = {390,395,400};
+			
+			return ((V > cutValues[cutLevel]) && (W > cutValues[cutLevel]) && (U < cutValuesU[cutLevel]));
+		
+		}
+		
+
+//////////////////////////////////////////////////////////////////////////////////
+// Parameters for HTCCeff, will send later the code for it 
+	float HTCCEff[nHTCCXBins][nHTCCYBins];
+	readHTCCEff(HTCCEff);
+    
+/////////////////////////////////////////////////////////////////////////////////    
+////////////// triangle Cut Params //////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+    
+        // reading parameters
+        // take it from my home directory/INC/analysis2/params/*
+	float triangleCutParams[6][10][2];
+	readTriangleCut(triangleCutParams, isData);
+	
+			void readTriangleCut(float cutParams[6][10][2], int isData){
+			ifstream fData("params/dataTriangleCut.dat");
+			ifstream fSim("params/simTriangleCut.dat");
+
+			
+			for (int s = 0; s < 6; s++){
+				for (int t = 0; t < 10; t++){
+					for (int l = 0; l < 2; l++){
+						if (isData == 1) fData >> cutParams[s][t][l];
+						if (isData == 0) fSim >> cutParams[s][t][l];
+						
+					}
+				}
+			}
+		}
+		
+		
+	  // applying the cut
+	  // the input is kin.ecinE/kin.momentum, kin.pcalE/kin.momentum
+	  //so ecinE is out_tree.Branch("ecinE", &ecinE) dived by electron momentum
+	  // change the variable name to ecin_sf or something similar
+	  // it is true for pcalE as well: out_tree.Branch("pcalE", &pcalE) divided by momentum
+	  // shift is 0
+	  // int pBin = (int)(p4_ele[i].P()/1); so it is binned in 1 GeV
+	  
+          bool SFTriangleCut(float ecinE, float pcalE, float cutParams[6][10][2], int sector, int pBin, float shift){
+		
+			if (pBin < 5) return true;
+            //for system:
+            //if (abs(shift)>0.0001) return true;
+                
+			float zero = cutParams[sector][pBin][0];
+			float slope = cutParams[sector][pBin][1];
+			if (zero + slope*ecinE + shift< pcalE) return true;
+			else return false;
+	  }
+	  
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	  
+	  
+
