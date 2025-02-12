@@ -160,46 +160,54 @@ int main() {
 
     // Define necessary variables in RDataFrame
     auto rdf2 = rdf.Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
-                   .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
-                   .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
-                   .Define("Q2", "-(el_initial - el_final).M2()")
-                   .Define("W", "(el_initial - el_final + proton_initial).M()")
-                   .Define("el_px", "return p4_ele_px[0];")
-                   .Define("el_py", "return p4_ele_py[0];")
-                   .Define("el_pz", "return p4_ele_pz[0];")
-                   .Define("el_sector", "return int(sectorE[0]);")
-                   .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
-                            return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
-                   .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
-                            return calculate_phi_theta(el_final, el_sector).second;}, {"el_final", "el_sector"})
-                   .Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
-                   .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
-                   .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()")
-                   .Define("el_abs_mom", "return sqrt(p4_ele_px[0]*p4_ele_px[0] + p4_ele_py[0]*p4_ele_py[0] + p4_ele_pz[0]*p4_ele_pz[0]);")
-                   .Define("el_abs_mom_corr", "return sqrt(el_final_corr.Px()*el_final_corr.Px() + el_final_corr.Py()*el_final_corr.Py() + el_final_corr.Pz()*el_final_corr.Pz());")
-                   .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
-                            return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
+                    .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
+                    .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
+                    .Define("Q2", "-(el_initial - el_final).M2()")
+                    .Define("W", "(el_initial - el_final + proton_initial).M()")
+                    .Define("el_px", "return p4_ele_px[0];")
+                    .Define("el_py", "return p4_ele_py[0];")
+                    .Define("el_pz", "return p4_ele_pz[0];")
+                    .Define("el_sector", "return int(sectorE[0]);")
+                    .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
+                             return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
+                    .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
+                             return calculate_phi_theta(el_final, el_sector).second;}, {"el_final", "el_sector"})
+                    .Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
+                    .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
+                    .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()")
+                    .Define("el_abs_mom", "return sqrt(p4_ele_px[0]*p4_ele_px[0] + p4_ele_py[0]*p4_ele_py[0] + p4_ele_pz[0]*p4_ele_pz[0]);")
+                    .Define("el_abs_mom_corr", "return sqrt(el_final_corr.Px()*el_final_corr.Px() + el_final_corr.Py()*el_final_corr.Py() + el_final_corr.Pz()*el_final_corr.Pz());")
+                    .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
+                             return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
+                    .Define("el_vz", "return p4_ele_vz[0];")
+                    .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"})
+                    .Define("Hx_pcal", "return pcalHX[0];")
+                    .Define("Hy_pcal", "return pcalHY[0];")
+                    .Define("Hx_ecin", "return ecinHX[0];")
+                    .Define("Hy_ecin", "return ecinHY[0];")
+                    .Define("Hx_ecout", "return ecoutHX[0];")
+                    .Define("Hy_ecout","return ecoutHY[0];")
+                    .Define("BadElementKnockOut", [](double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int el_sector) {
+                             return BadElementKnockOut(Hx_pcal, Hy_pcal, Hx_ecin, Hy_ecin, Hx_ecout, Hy_ecout, el_sector, 1); }, {"Hx_pcal", "Hy_pcal", "Hx_ecin", "Hy_ecin", "Hx_ecout", "Hy_ecout", "el_sector"});
 
-                   .Define("el_vz", "return p4_ele_vz[0];")
-                   .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"});
-                   
-    //rdf2.Display({"el_vz_cut"}, 10)->Print();
-
-    rdf2.Filter("phiSpikeCut == false").Display({"phiSpikeCut"}, 100)->Print();
+    rdf2.Display({"BadElementKnockOut"}, 100)->Print();
 
 
-    // Print column names
-    //std::cout << "Columns in RDataFrame:" << std::endl;
-    //for (const auto &col : rdf2.GetColumnNames()) {
-    //    std::cout << col << std::endl;
-    //}
+    //rdf2.Filter("BadElementKnockOut == false").Display({"BadElementKnockOut"}, 100)->Print();
+
+
+    //Print column names
+    std::cout << "Columns in RDataFrame:" << std::endl;
+    for (const auto &col : rdf2.GetColumnNames()) {
+        std::cout << col << std::endl;
+    }
 
     // Generate plots
-    plot_1d_abs_mom(rdf2);
-    plot_1d_W(rdf2);
-    plot_1d_QSquared(rdf2);
-    plot_2d_W_vs_QSquared(rdf2);
-    plot_elastic_W_sector(rdf2);
+    //plot_1d_abs_mom(rdf2);
+    //plot_1d_W(rdf2);
+    //plot_1d_QSquared(rdf2);
+    //plot_2d_W_vs_QSquared(rdf2);
+    //plot_elastic_W_sector(rdf2);
 
 
     return 0;
