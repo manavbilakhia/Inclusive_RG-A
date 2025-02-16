@@ -49,7 +49,7 @@ void ana12GeVShortFCQA(){
 
 bool wCut(double e_px, double e_py, double e_pz, double e_E, double Ebeam){
     double lowCut = 0.7;
-    double highCut = 2.7;
+    double highCut = 3.0;
     
     
     //double lowCut = 0.7;
@@ -65,24 +65,10 @@ bool wCut(double e_px, double e_py, double e_pz, double e_E, double Ebeam){
 }
 
 
-bool thetaCut(double e_px, double e_py, double e_pz, double e_E, double Ebeam){
-    
-    
-    double lowCut = 10.;
-    double highCut = 27.;
-    float toRD = 57.2958;
-    
-    TLorentzVector ele(e_px,e_py,e_pz,e_E);
-    double theta = ele.Theta()*toRD;
-    
-	return (theta > lowCut) && (theta < highCut);
-}
-
-
-bool q2Cut(double e_px, double e_py, double e_pz, double e_E, double Ebeam){
+bool q2Cut(double e_px, double e_py, double e_pz, double e_E, double Ebeam){ 
     return true;
     
-    double lowCut = 2.0;
+    double lowCut = 1.8;
     double highCut = 10.6;
     
     TLorentzVector ele(e_px,e_py,e_pz,e_E);
@@ -372,10 +358,13 @@ if (isData) config_c12->addAtLeastPid(11,1);
  	double e_pz = electron[u]->par()->getPz();
   	double e_E = sqrt(electron[u]->par()->getPx()*electron[u]->par()->getPx() + electron[u]->par()->getPy()*electron[u]->par()->getPy() + electron[u]->par()->getPz()*electron[u]->par()->getPz());
       if (electron[u]->getRegion() == FD){
+        wCut(e_px, e_py, e_pz, e_E, Ebeam)
+        q2Cut(e_px, e_py, e_pz, e_E, Ebeam)
+        }
           //&& electron[u]->par()->getVz() > -10 && electron[u]->par()->getVz() < 5 && isFid == 1){
           
           //&& electron[u]->par()->getVz() > -10 && electron[u]->par()->getVz() < 5   && 
-          //(!isKinemAndFidCut || (isFid == 1 && wCut(e_px, e_py, e_pz, e_E, Ebeam) && q2Cut(e_px, e_py, e_pz, e_E, Ebeam) && electron[u]->par()->getP() > 1.5) )){
+        //  (!isKinemAndFidCut || (isFid == 1 && wCut(e_px, e_py, e_pz, e_E, Ebeam) && q2Cut(e_px, e_py, e_pz, e_E, Ebeam) && electron[u]->par()->getP() > 1.5) )){
         
           
     //cout<<electron[u]->cal(ECOUT)->getHx()<< " -1- " <<electron[u]->par()->getChi2Pid()<<endl;
