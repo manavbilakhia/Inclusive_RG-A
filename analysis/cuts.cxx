@@ -414,8 +414,8 @@ double isBetweenOfLines(double x, double y, line topLine, line botLine){
 
 
 
-bool phiSpikeCut(const double phi, const double theta, const int sec, const int cutLevel){
-
+bool phiSpikeCut(const double phi, const double theta, int sec, const int cutLevel){
+    sec = sec-1;
 	double shiftSys = 0;
 	if (cutLevel == 0) shiftSys = 1.;
 	if (cutLevel == 2) shiftSys = -1.;
@@ -704,7 +704,7 @@ bool DCFidXY(float X, float Y, int region, int sector, int cutLevel){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DC FID CUT 
 struct DCXY{
- double r1X,r1Y,r2X,r2Y,r3X,r3Y;
+ double r1X,r1Y,r2X,r2Y,r3X,r3Y; // rotatesd x and y coordinates
 };
 bool CutDCfid(const DCXY& dc, int sec, const int cutLevel){
     return (
@@ -721,7 +721,7 @@ bool CutDCfid(const DCXY& dc, int sec, const int cutLevel){
 // sampling fraction cut:
 
 /// Input for SF cut (deposited energy divided by momentum):
-/// sf = kin.calEnerg / p4_electron.P(), Edep = kin.calEnerg,
+/// sf = kin.calEnerg / p4_electron.P(), Edep = kin.calEnerg, for cal energy, sum all 3
 // Edep = kin.calEnerg = ecout_E[i] + ecin_E[i] + pcal_E[i]
 // p4_electron is scattered electron.
 
@@ -797,29 +797,36 @@ bool SfCutValerii_Edepos(const double sf,const double Edep,const int sec,const i
 ////////////// triangle Cut Params //////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
     
+    	float triangleCutParams[6][10][2];
+
         // reading parameters
         // take it from my home directory/INC/analysis2/params/*
         //this funxction reads the parameters file for the triangle cut
 
 	
-	//		void readTriangleCut(float cutParams[6][10][2], int isData){
-	//		std::ifstream fData("params/dataTriangleCut.dat");
-	//		std::ifstream fSim("params/simTriangleCut.dat");
+			void readTriangleCut(float cutParams[6][10][2], int isData){
+			std::ifstream fData("../params/dataTriangleCut.dat");
+			std::ifstream fSim("../params/simTriangleCut.dat");
+
+
 //
-	//		
-	//		for(int s = 0; s < 6; s++){
-	//			for(int t = 0; t < 10; t++){
-	//				for(int l = 0; l < 2; l++){
-	//					if(isData == 1) fData >> cutParams[s][t][l];
-	//					if(isData == 0) fSim >> cutParams[s][t][l];
-	//					
-	//				}
-	//			}
-	//		}
-	//	}
-	//	
-	//float triangleCutParams[6][10][2];
-	//readTriangleCut(triangleCutParams, isData);	
+			
+			for(int s = 0; s < 6; s++){
+				for(int t = 0; t < 10; t++){
+					for(int l = 0; l < 2; l++){
+						if(isData == 1) fData >> cutParams[s][t][l];
+						if(isData == 0) fSim >> cutParams[s][t][l];
+						
+					}
+				}
+			}
+		}
+		
+
+    // Function to initialize the triangle cut parameters
+void initializeTriangleCut() {
+    readTriangleCut(triangleCutParams, 1);
+}
 	  // applying the cut
 	  // the input is kin.ecinE/kin.momentum, kin.pcalE/kin.momentum
 	  //so ecinE is out_tree.Branch("ecinE", &ecinE) dived by electron momentum
@@ -828,9 +835,9 @@ bool SfCutValerii_Edepos(const double sf,const double Edep,const int sec,const i
 	  // shift is 0
 	  // int pBin = (int)(p4_ele[i].P()/1); so it is binned in 1 GeV
 	  
-          bool SFTriangleCut(float ecinE, float pcalE, float cutParams[6][10][2], int sector, int pBin, float shift){
-		
-			if (pBin < 5) return true;
+          bool SFTriangleCut(double ecinE, double pcalE, float cutParams[6][10][2], int sector, int pBin, float shift){
+            sector = sector-1;
+            if (pBin < 5) return true;
             //for system:
             //if (abs(shift)>0.0001) return true;
                 
