@@ -1,3 +1,4 @@
+using namespace std;
 #include <cstdlib>
 #include <iostream>
 #include <chrono>
@@ -39,7 +40,7 @@ void ana12GeVShortFCQA(){
       isHipo = 0;
     } 
   }
-  cout << "isHipo: "<< isHipo << endl;
+  std::cout << "isHipo: "<< isHipo << endl;
   if(isHipo < 0)  {
     std::cout << " *** please provide a root or text input file name..." << std::endl;
     exit(0);
@@ -158,7 +159,7 @@ void processHipo(TString inputFile){
   vector<int> compSci;
     
 
-  TFile outFile(Form("../../data/outH2R_test/%s_QADBtest.root",inputFile.Data()), "recreate");
+  TFile outFile(Form("../../data/outH2R/%s_QADBtest.root",inputFile.Data()), "recreate");
   TTree out_tree("out_tree","out_tree");
     
   //electrons                                                                                                                                                                                                 
@@ -265,7 +266,7 @@ if (isData) config_c12->addAtLeastPid(11,1);
   auto& c12=chain.C12ref();
   while(chain.Next()){
     counter++;
-    if (counter%1000000 == 0) cout << "processed "<< counter/1000000 << "M events" << endl;
+    if (counter%1000000 == 0) std::cout << "processed "<< counter/1000000 << "M events" << endl;
     if (counter == nToProcess) break;
  
       
@@ -358,8 +359,8 @@ if (isData) config_c12->addAtLeastPid(11,1);
  	double e_pz = electron[u]->par()->getPz();
   	double e_E = sqrt(electron[u]->par()->getPx()*electron[u]->par()->getPx() + electron[u]->par()->getPy()*electron[u]->par()->getPy() + electron[u]->par()->getPz()*electron[u]->par()->getPz());
       if (electron[u]->getRegion() == FD){
-        wCut(e_px, e_py, e_pz, e_E, Ebeam)
-        q2Cut(e_px, e_py, e_pz, e_E, Ebeam)
+        wCut(e_px, e_py, e_pz, e_E, Ebeam);
+        q2Cut(e_px, e_py, e_pz, e_E, Ebeam);
         }
           //&& electron[u]->par()->getVz() > -10 && electron[u]->par()->getVz() < 5 && isFid == 1){
           
@@ -367,8 +368,8 @@ if (isData) config_c12->addAtLeastPid(11,1);
         //  (!isKinemAndFidCut || (isFid == 1 && wCut(e_px, e_py, e_pz, e_E, Ebeam) && q2Cut(e_px, e_py, e_pz, e_E, Ebeam) && electron[u]->par()->getP() > 1.5) )){
         
           
-    //cout<<electron[u]->cal(ECOUT)->getHx()<< " -1- " <<electron[u]->par()->getChi2Pid()<<endl;
-    //cout<<electron[u]->sci(FTOF1B)->getHX()<< " -2- " <<electron[u]->sci(FTOF1B)->getComponent()<<endl;
+    //std::cout<<electron[u]->cal(ECOUT)->getHx()<< " -1- " <<electron[u]->par()->getChi2Pid()<<endl;
+    //std::cout<<electron[u]->sci(FTOF1B)->getHX()<< " -2- " <<electron[u]->sci(FTOF1B)->getComponent()<<endl;
 
 	htccNPE.push_back(electron[u]->che(HTCC)->getNphe());
 	htccX.push_back(electron[u]->traj(HTCC,1)->getX());
@@ -443,10 +444,9 @@ if (isData) config_c12->addAtLeastPid(11,1);
     }
     counter_generated++;
     out_tree.Fill();
-  }
   //
-    cout <<"Accumulated charge post QA 2: " << chain.TotalBeamCharge()<<" nC"<<endl;
-    cout << "Accumulated charge good 2: " << chain.db()->qa()->getAccCharge() << " nC" << endl;
+    std::cout <<"Accumulated charge post QA 2: " << chain.TotalBeamCharge()<<" nC"<<endl;
+    std::cout << "Accumulated charge good 2: " << chain.db()->qa()->getAccCharge() << " nC" << endl;
 
     
   outFile.cd();
