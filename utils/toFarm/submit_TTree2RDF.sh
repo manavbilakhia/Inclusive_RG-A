@@ -2,7 +2,7 @@
 #SBATCH --ntasks=1
 #SBATCH --job-name=TTree2RDF
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=manavb@jlab.org
+#SBATCH --mail-user=$SLURM_JOB_USER
 #SBATCH --output=/farm_out/%u/%x-%A_%a-%j-%N.out
 #SBATCH --error=/farm_out/%u/%x-%A_%a-%j-%N.err
 #SBATCH --partition=production

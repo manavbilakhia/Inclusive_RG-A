@@ -18,7 +18,7 @@
 #include <TLegend.h> 
 
 
-const std::string OUTPUT_FOLDER = "../analysis_out/";
+const std::string OUTPUT_FOLDER = "../analysis_out_test/";
 
 ROOT::RDataFrame convert_ttrees_to_rdataframe(const std::string &root_file_path) {
     TFile *file = TFile::Open(root_file_path.c_str(), "READ");
@@ -203,7 +203,7 @@ for (int s = 0; s < 6; s++) {
 }
 
     // Load ROOT file and convert TTrees to RDataFrame
-    std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest.root";
+    std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest3.root";
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;
@@ -278,13 +278,13 @@ for (int s = 0; s < 6; s++) {
 
     // Generate plots
 //    plot_1d_abs_mom(W_filtered_rdf);
-//    plot_1d_W(W_filtered_rdf);
-//    plot_1d_QSquared(W_filtered_rdf);
+    plot_1d_W(W_filtered_rdf);
+    plot_1d_QSquared(W_filtered_rdf);
 //    plot_2d_W_vs_QSquared(W_filtered_rdf);
 //    plot_elastic_W_sector(W_filtered_rdf);
 //    plot_1d_el_final_corr_P(W_filtered_rdf);.
 //      plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
-plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
+//plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
 
 
     return 0;
