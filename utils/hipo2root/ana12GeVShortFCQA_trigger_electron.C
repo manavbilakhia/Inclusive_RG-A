@@ -25,7 +25,7 @@ void processHipo(TString inputFile);
 int PCALFidXY(float x, float y, int cutLevel);
 
 
-void ana12GeVShortFCQA(){
+void ana12GeVShortFCQA_trigger_electron(){
   TString inputFile;
   int isHipo = -1;
   for(Int_t i=1;i<gApplication->Argc();i++){
@@ -171,7 +171,7 @@ void processHipo(TString inputFile){
   vector<int> compSci;
     
 
-  TFile outFile(Form("../../data/outH2R_test/%s_QADBtest_first_electron.root",inputFile.Data()), "recreate");
+  TFile outFile(Form("../../data/outH2R_test/%s_QADBtest_trigger_electron.root",inputFile.Data()), "recreate");
   TTree out_tree("out_tree","out_tree");
     
   //electrons                                                                                                                                                                                                 
@@ -346,7 +346,10 @@ void processHipo(TString inputFile){
     auto electron=c12->getByID(11);
     
     if (electron.size()==0) continue; // discard events with no electrons
+    bool trigger_electron = false;
     for (int u = 0; u < electron.size(); u++){
+      if (electron[u]->getStatus() > -4000 && electron[u]->getStatus() <= -2000) {
+        trigger_electron = true;
         TVector3 rotVector(electron[u]->cal(PCAL)->getHx(), electron[u]->cal(PCAL)->getHy(), electron[u]->cal(PCAL)->getHz());
         rotVector.RotateZ(-60*(electron[u]->getSector()-1)/57.2958);
         rotVector.RotateY(-25/57.2958);
@@ -420,6 +423,8 @@ void processHipo(TString inputFile){
           compSci.push_back(electron[u]->sci(FTOF1B)->getComponent());
         }  
       }
+    }
+    if (!trigger_electron) continue; // Discard events with no electrons in FD
     auto mcpbank=c12->mcparts();
     for(Int_t i=0;i<mcpbank->getRows();i++){
       mcpbank->setEntry(i);
@@ -431,7 +436,9 @@ void processHipo(TString inputFile){
       }
     }
     counter_generated++;
-    out_tree.Fill();
+    if (!(p4_ele_px.empty()))
+      out_tree.Fill();
+    //out_tree.Fill();
   }
   
   cout <<"Accumulated charge post QA 2: " << chain.TotalBeamCharge()<<" nC"<<endl;

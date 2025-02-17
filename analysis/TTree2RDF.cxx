@@ -16,9 +16,23 @@
 #include <fstream>
 #include <TLine.h> 
 #include <TLegend.h> 
+#include <string>
+
+// Define the root file path
+std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_trigger_electron.root";
+
+// Define the suffix manually using substr()
+std::string target_suffix = "trigger_electron.root";
+std::string suffix = 
+    (root_file_path.size() >= target_suffix.size() && 
+     root_file_path.substr(root_file_path.size() - target_suffix.size()) == target_suffix) 
+    ? "trigger_electron" 
+    : "first_electron";
+
+// Define the output folder as a constant
+const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + "/";
 
 
-const std::string OUTPUT_FOLDER = "../analysis_out_test/";
 
 ROOT::RDataFrame convert_ttrees_to_rdataframe(const std::string &root_file_path) {
     TFile *file = TFile::Open(root_file_path.c_str(), "READ");
@@ -194,22 +208,20 @@ int main() {
     initializeTriangleCut();
 
     std::cout << "triangleCutParams check:\n";
-for (int s = 0; s < 6; s++) {
-    for (int t = 0; t < 10; t++) {
-        std::cout << "Sector: " << s << ", Bin: " << t
-                  << " -> Zero: " << triangleCutParams[s][t][0]
-                  << ", Slope: " << triangleCutParams[s][t][1] << std::endl;
+    for (int s = 0; s < 6; s++) {
+        for (int t = 0; t < 10; t++) {
+            std::cout << "Sector: " << s << ", Bin: " << t
+                      << " -> Zero: " << triangleCutParams[s][t][0]
+                      << ", Slope: " << triangleCutParams[s][t][1] << std::endl;
+        }
     }
-}
 
     // Load ROOT file and convert TTrees to RDataFrame
-    std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023.dat_QADBtest3.root";
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;
         return 1;
     }
-
 
     // Define necessary variables in RDataFrame
 
@@ -226,7 +238,7 @@ for (int s = 0; s < 6; s++) {
                         .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
                         .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()");
 
-    auto W_filtered_rdf = init_rdf.Filter("W > 0.7 && W < 3.0") //W cut
+    auto W_filtered_rdf = init_rdf//.Filter("W > 0.7 && W < 3.0") //W cut
                     .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
                         return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
                     .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
@@ -277,14 +289,14 @@ for (int s = 0; s < 6; s++) {
 //    }
 
     // Generate plots
-//    plot_1d_abs_mom(W_filtered_rdf);
+    plot_1d_abs_mom(W_filtered_rdf);
     plot_1d_W(W_filtered_rdf);
     plot_1d_QSquared(W_filtered_rdf);
-//    plot_2d_W_vs_QSquared(W_filtered_rdf);
-//    plot_elastic_W_sector(W_filtered_rdf);
-//    plot_1d_el_final_corr_P(W_filtered_rdf);.
-//      plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
-//plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
+    plot_2d_W_vs_QSquared(W_filtered_rdf);
+    plot_elastic_W_sector(W_filtered_rdf);
+    plot_1d_el_final_corr_P(W_filtered_rdf);
+      plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
+plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
 
 
     return 0;
