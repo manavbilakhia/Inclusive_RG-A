@@ -305,15 +305,6 @@ int main() {
     // Ensure triangleCutParams is initialized
     initializeTriangleCut();
 
-    //std::cout << "triangleCutParams check:\n";
-    //for (int s = 0; s < 6; s++) {
-    //    for (int t = 0; t < 10; t++) {
-    //        std::cout << "Sector: " << s << ", Bin: " << t
-    //                  << " -> Zero: " << triangleCutParams[s][t][0]
-    //                  << ", Slope: " << triangleCutParams[s][t][1] << std::endl;
-    //    }
-    //}
-
     // Load ROOT file and convert TTrees to RDataFrame
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
@@ -327,126 +318,93 @@ int main() {
                         .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
                         .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
                         .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
-                        .Define("Q2", "-(el_initial - el_final).M2()")
-                        .Define("W", "(el_initial - el_final + proton_initial).M()")
                         .Define("el_px", "return p4_ele_px[0];")
                         .Define("el_py", "return p4_ele_py[0];")
                         .Define("el_pz", "return p4_ele_pz[0];")
                         .Define("el_sector", "return int(sectorE[0]);")
                         .Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
+                        .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
+                            return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
+                        .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
+                            return calculate_phi_theta(el_final, el_sector).second;}, {"el_final", "el_sector"})
+                        .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
+                            return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
+                        .Filter("phiSpikeCut == true")
+                        .Define("el_vz", "return p4_ele_vz[0];")
+                        .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"})
+                        .Filter("el_vz_cut == true")
+                        .Define("Hx_pcal", "return pcalHX[0];")
+                        .Define("Hy_pcal", "return pcalHY[0];")
+                        .Define("Hx_ecin", "return ecinHX[0];")
+                        .Define("Hy_ecin", "return ecinHY[0];")
+                        .Define("Hx_ecout", "return ecoutHX[0];")
+                        .Define("Hy_ecout","return ecoutHY[0];")
+                        .Define("BadElementKnockOut", [](double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int el_sector) {
+                            return BadElementKnockOut(Hx_pcal, Hy_pcal, Hx_ecin, Hy_ecin, Hx_ecout, Hy_ecout, el_sector, 1); }, {"Hx_pcal", "Hy_pcal", "Hx_ecin", "Hy_ecin", "Hx_ecout", "Hy_ecout", "el_sector"})
+                        .Filter("BadElementKnockOut == true")
+                        .Define("ecin_Energy", "return ecinE[0];")
+                        .Define("pcal_Energy", "return pcalE[0];")
+                        .Define("ecout_Energy", "return ecoutE[0];")
+                        .Define("ecin_sf", "return ecin_Energy / el_final_corr.P();")
+                        .Define("pcal_sf", "return pcal_Energy / el_final_corr.P();")
+                        .Define("SFTriangleCut", [](double ecinE, double pcalE, const TLorentzVector& el_final_corr, int sector) {
+                            float shift = 0.0f;
+                            int pBin = static_cast<int>(el_final_corr.P()/1);
+                            return SFTriangleCut(ecinE, pcalE, triangleCutParams, sector, pBin, shift);}, {"ecin_sf", "pcal_sf", "el_final_corr", "el_sector"})
+                        .Filter("SFTriangleCut == true")
+                        .Define("dcR1Vector3", "return TVector3(dcXR1[0], dcYR1[0], dcZR1[0]);")
+                        .Define("dcR2Vector3", "return TVector3(dcXR2[0], dcYR2[0], dcZR2[0]);")
+                        .Define("dcR3Vector3", "return TVector3(dcXR3[0], dcYR3[0], dcZR3[0]);")
+                        .Define("dcR1Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR1Vector3", "el_sector"})
+                        .Define("dcR2Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR2Vector3", "el_sector"})
+                        .Define("dcR3Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR3Vector3", "el_sector"})
+                        .Define("dcXY",
+                            [](const TVector3& dcR1, const TVector3& dcR2, const TVector3& dcR3) {
+                                return DCXY{dcR1.X(), dcR1.Y(), dcR2.X(), dcR2.Y(), dcR3.X(), dcR3.Y()};}, {"dcR1Vector3_rot", "dcR2Vector3_rot", "dcR3Vector3_rot"})
+                        .Define("CutDCfid",
+                            [](const DCXY& dcXY, int sec) {
+                                return CutDCfid(dcXY, sec, 1);}, {"dcXY", "el_sector"})
+                        .Filter("CutDCfid == true")
+                        .Define("pcalLu_f", "return pcalLu[0];")
+                        .Define("pcalLv_f", "return pcalLv[0];")
+                        .Define("pcalLw_f", "return pcalLw[0];")
+                        .Define ("PCALFid_VW", [](double pcalLu, double pcalLv, double pcalLw) {
+                            return PCALFid_VW(pcalLv, pcalLw, pcalLu, 1);  }, {"pcalLu_f", "pcalLv_f", "pcalLw_f"})
+                        .Filter("PCALFid_VW == true")
+                        .Define("Edep", "return ecout_Energy + ecin_Energy + pcal_Energy;")
+                        .Define("sf", "return Edep / el_final_corr.P();")
+                        .Define("SfCut", [](double sf, double Edep, int sec) {
+                            sec = sec-1;
+                            return SfCutValerii_Edepos(sf, Edep, sec, 1, 1); }, {"sf", "Edep", "el_sector"})
+                        .Filter("SfCut == true")
+                        .Define("Q2", "-(el_initial - el_final).M2()")
+                        .Define("W", "(el_initial - el_final + proton_initial).M()")
                         .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
                         .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()");
 
-    auto W_filtered_rdf = init_rdf.Filter("W > 0.7 && W < 3.0") //W cut
-                    .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
-                        return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
-                    .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
-                        return calculate_phi_theta(el_final, el_sector).second;}, {"el_final", "el_sector"})
-                    .Define("el_final_corr_P", "return (sqrt(el_final_corr.Px()*el_final_corr.Px() + el_final_corr.Py()*el_final_corr.Py() + el_final_corr.Pz()*el_final_corr.Pz()));")
-                    .Define("el_abs_mom", "return sqrt(p4_ele_px[0]*p4_ele_px[0] + p4_ele_py[0]*p4_ele_py[0] + p4_ele_pz[0]*p4_ele_pz[0]);")
-                    .Define("el_abs_mom_corr", "return sqrt(el_final_corr.Px()*el_final_corr.Px() + el_final_corr.Py()*el_final_corr.Py() + el_final_corr.Pz()*el_final_corr.Pz());")
-                    .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
-                        return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
-                    .Filter("phiSpikeCut == true")
-                    .Define("el_vz", "return p4_ele_vz[0];")
-                    .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"})
-                    .Filter("el_vz_cut == true")
-                    .Define("Hx_pcal", "return pcalHX[0];")
-                    .Define("Hy_pcal", "return pcalHY[0];")
-                    .Define("Hx_ecin", "return ecinHX[0];")
-                    .Define("Hy_ecin", "return ecinHY[0];")
-                    .Define("Hx_ecout", "return ecoutHX[0];")
-                    .Define("Hy_ecout","return ecoutHY[0];")
-                    .Define("BadElementKnockOut", [](double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int el_sector) {
-                        return BadElementKnockOut(Hx_pcal, Hy_pcal, Hx_ecin, Hy_ecin, Hx_ecout, Hy_ecout, el_sector, 1); }, {"Hx_pcal", "Hy_pcal", "Hx_ecin", "Hy_ecin", "Hx_ecout", "Hy_ecout", "el_sector"})
-                    .Filter("BadElementKnockOut == true")
-                    .Define("ecin_Energy", "return ecinE[0];")
-                    .Define("pcal_Energy", "return pcalE[0];")
-                    .Define("ecin_sf", "return ecin_Energy / el_final_corr.P();")
-                    .Define("pcal_sf", "return pcal_Energy / el_final_corr.P();")
-                    .Define("pBin", "return static_cast<int>(el_final_corr.P()/1);")
-                    .Define("SFTriangleCut", [](double ecinE, double pcalE, const TLorentzVector& el_final_corr, int sector) {
-                        float shift = 0.0f;
-                        int pBin = static_cast<int>(el_final_corr.P()/1);
-                        if (el_final_corr.P() > 10.5){
-                        std::cout << "el_final_corr.P()=" << el_final_corr.P() << std::endl;}
-                        return SFTriangleCut(ecinE, pcalE, triangleCutParams, sector, pBin, shift);}, {"ecin_sf", "pcal_sf", "el_final_corr", "el_sector"})
-                    .Filter("SFTriangleCut == true")
-                    .Define("dcR1Vector3", "return TVector3(dcXR1[0], dcYR1[0], dcZR1[0]);")
-                    .Define("dcR2Vector3", "return TVector3(dcXR2[0], dcYR2[0], dcZR2[0]);")
-                    .Define("dcR3Vector3", "return TVector3(dcXR3[0], dcYR3[0], dcZR3[0]);")
-                    .Define("dcR1Vector3_rot", [](TVector3 vec, int sec) {
-                        sec = sec-1;
-                        vec.RotateZ(-60 * sec / 57.2958);
-                        vec.RotateY(-25 / 57.2958);
-                        return vec;}, {"dcR1Vector3", "el_sector"})
-                    .Define("dcR2Vector3_rot", [](TVector3 vec, int sec) {
-                        sec = sec-1;
-                        vec.RotateZ(-60 * sec / 57.2958);
-                        vec.RotateY(-25 / 57.2958);
-                        return vec;}, {"dcR2Vector3", "el_sector"})
-                    .Define("dcR3Vector3_rot", [](TVector3 vec, int sec) {
-                        sec = sec-1;
-                        vec.RotateZ(-60 * sec / 57.2958);
-                        vec.RotateY(-25 / 57.2958);
-                        return vec;}, {"dcR3Vector3", "el_sector"})
-                    .Define("dcXY",
-                        [](const TVector3& dcR1, const TVector3& dcR2, const TVector3& dcR3) {
-                            return DCXY{dcR1.X(), dcR1.Y(), dcR2.X(), dcR2.Y(), dcR3.X(), dcR3.Y()};}, {"dcR1Vector3_rot", "dcR2Vector3_rot", "dcR3Vector3_rot"})
-                    .Define("CutDCfid",
-                        [](const DCXY& dcXY, int sec) {
-                            return CutDCfid(dcXY, sec, 1);}, {"dcXY", "el_sector"})
-                    .Filter("CutDCfid == true");
-                    
 
 
-//
-//int count = 0;
-//W_filtered_rdf.Foreach([&count](const TVector3& vec) {
-//    if (count < 20) {
-//        std::cout << "dcR1Vector3[" << count << "]: (" 
-//                  << vec.X() << ", " << vec.Y() << ", " << vec.Z() << ")" << std::endl;
-//        count++;
-//    }
-//}, {"dcR1Vector3"});
-//
-//count = 0;
-//W_filtered_rdf.Foreach([&count](const TVector3& vec) {
-//    if (count < 20) {
-//        std::cout << "dcR1Vector3_rot[" << count << "]: (" 
-//                  << vec.X() << ", " << vec.Y() << ", " << vec.Z() << ")" << std::endl;
-//        count++;
-//    }
-//}, {"dcR1Vector3_rot"});
-
-//rotatedY_vs_rotated_x_all_sectors(W_filtered_rdf);
-//unrotatedY_vs_unrotated_x_all_sectors(W_filtered_rdf);
-//    W_filtered_rdf.Display({"pBin"}, 10)->Print();
-//    W_filtered_rdf.Display({"ecin_sf"}, 10)->Print();
-//    W_filtered_rdf.Display({"pcal_sf"}, 10)->Print();
-//    W_filtered_rdf.Display({"el_sector"}, 10)->Print();
-    //W_filtered_rdf.Filter("el_final_corr_P > 10.5").Display({"el_final_corr_P"}, 10000000)->Print();
-
-//    W_filtered_rdf.Filter("pBin ==4 && el_final_corr_P <4").Display({"el_final_corr_P"}, 100)->Print();
-    //std::cout << "Finished filtering" << std::endl;
-    //W_filtered_rdf.Filter("SFTriangleCut == true").Display({"SFTriangleCut"}, 100)->Print();
-
+    rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
-    std::cout << "Columns in RDataFrame:" << std::endl;
-    for (const auto &col : W_filtered_rdf.GetColumnNames()) {
-        std::cout << col << std::endl;
-    }
+    //std::cout << "Columns in RDataFrame:" << std::endl;
+    //for (const auto &col : init_rdf.GetColumnNames()) {
+    //    std::cout << col << std::endl;
+    //}
      
-    // Generate plots
-    //plot_1d_abs_mom(W_filtered_rdf);
-    //plot_1d_W(W_filtered_rdf);
-    //plot_1d_QSquared(W_filtered_rdf);
-    //plot_2d_W_vs_QSquared(W_filtered_rdf);
-    //plot_elastic_W_sector(W_filtered_rdf);
-    //plot_1d_el_final_corr_P(W_filtered_rdf);
-    //plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
-    //plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
-
+    plot_1d_W(init_rdf);
+    plot_2d_W_vs_QSquared(init_rdf);
 
     return 0;
 }
