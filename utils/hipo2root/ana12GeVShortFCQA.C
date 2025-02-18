@@ -223,7 +223,7 @@ void processHipo(TString inputFile){
 
   out_tree.Branch("dcXR1", &dcXR1);
   out_tree.Branch("dcYR1", &dcYR1);
-  out_tree.Branch("dcYZ1", &dcZR1);
+  out_tree.Branch("dcZR1", &dcZR1);
     
   out_tree.Branch("dcXR2", &dcXR2);
   out_tree.Branch("dcYR2", &dcYR2);

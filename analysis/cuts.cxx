@@ -637,9 +637,10 @@ bool BadElementKnockOut(double Hx_pcal, double Hy_pcal, double Hx_ecin, double H
 }
 
 
-void rotVect(TVector3& resVector3, const int sec){
+TVector3 rotVect(TVector3 resVector3, const int sec){
 	resVector3.RotateZ(-60*sec/57.2958);
 	resVector3.RotateY(-25/57.2958);
+    return resVector3;
 }
 
 

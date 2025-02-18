@@ -19,7 +19,7 @@
 #include <string>
 
 // Define the root file path
-std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_trigger_electron.root";
+std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
 
 // Define the suffix manually using substr()
 std::string target_suffix = "trigger_electron.root";
@@ -154,6 +154,104 @@ void plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(ROOT::RDF::RNode rdf
     std::cout << "Saved 2D histogram as pcal_sf_vs_ecin_sf_sector1.png" << std::endl;
 }
 
+void rotatedY_vs_rotated_x_sectorwise(ROOT::RDF::RNode rdf) {
+    for (int sector = 1; sector <= 6; ++sector) {
+        // Create histogram
+        TH2D hist2D(Form("rotatedY_vs_rotatedX_sector%d", sector),
+                    Form("Rotated Y vs Rotated X Sector %d; Rotated X; Rotated Y", sector),
+                    100, -200, 200, 100, -200, 200);
+
+        // Use Foreach to extract data and fill histogram
+        rdf.Filter(Form("el_sector == %d", sector)).Foreach(
+            [&](const TVector3& vec) {
+                hist2D.Fill(vec.X(), vec.Y()); // Fill histogram
+            },
+            {"dcR1Vector3_rot"} // Extract the vector without defining extra columns
+        );
+
+        // Draw the histogram
+        TCanvas canvas(Form("c8_sector%d", sector), Form("Rotated Y vs Rotated X Sector %d", sector), 800, 600);
+        hist2D.Draw("COLZ");
+        canvas.SaveAs((OUTPUT_FOLDER + Form("rotatedY_vs_rotatedX_sector%d.png", sector)).c_str());
+        std::cout << "Saved 2D histogram as rotatedY_vs_rotatedX_sector" << sector << ".png" << std::endl;
+    }
+}
+
+void rotatedY_vs_rotated_x_all_sectors(ROOT::RDF::RNode rdf) {
+    TCanvas canvas("c8", "Rotated Y vs Rotated X for All Sectors", 1200, 800);
+    canvas.Divide(3, 2); // Create 6 subpads (3 columns × 2 rows)
+
+    std::vector<TH2D*> histograms;
+
+    for (int sector = 1; sector <= 6; ++sector) {
+        histograms.push_back(new TH2D(Form("rotatedY_vs_rotatedX_sector%d", sector),
+                                      Form("Sector %d; Rotated X; Rotated Y", sector),
+                                      100, -200, 200, 100, -200, 200));
+
+        rdf.Filter(Form("el_sector == %d", sector)).Foreach(
+            [&](const TVector3& vec) {
+                histograms[sector - 1]->Fill(vec.X(), vec.Y());
+            },
+            {"dcR1Vector3_rot"} // Extract vector directly
+        );
+
+        canvas.cd(sector); // Move to subpad for the sector
+        histograms[sector - 1]->Draw("COLZ");
+    }
+
+    canvas.SaveAs((OUTPUT_FOLDER + "rotatedY_vs_rotatedX_all_sectors.png").c_str());
+    std::cout << "Saved 2D histograms for all sectors on one canvas." << std::endl;
+}
+
+void unrotatedY_vs_unrotated_x_all_sectors(ROOT::RDF::RNode rdf) {
+    TCanvas canvas("c8", "unRotated Y vs unRotated X for All Sectors", 1200, 800);
+    canvas.Divide(3, 2); // Create 6 subpads (3 columns × 2 rows)
+
+    std::vector<TH2D*> histograms;
+
+    for (int sector = 1; sector <= 6; ++sector) {
+        histograms.push_back(new TH2D(Form("unrotatedY_vs_unrotatedX_sector%d", sector),
+                                      Form("Sector %d; unRotated X; unRotated Y", sector),
+                                      100, -200, 200, 100, -200, 200));
+
+        rdf.Filter(Form("el_sector == %d", sector)).Foreach(
+            [&](const TVector3& vec) {
+                histograms[sector - 1]->Fill(vec.X(), vec.Y());
+            },
+            {"dcR1Vector3"} // Extract vector directly
+        );
+
+        canvas.cd(sector); // Move to subpad for the sector
+        histograms[sector - 1]->Draw("COLZ");
+    }
+
+    canvas.SaveAs((OUTPUT_FOLDER + "unrotatedY_vs_unrotatedX_all_sectors.png").c_str());
+    std::cout << "Saved 2D histograms for all sectors on one canvas." << std::endl;
+}
+
+void unrotatedY_vs_unrotated_x_sectorwise(ROOT::RDF::RNode rdf) {
+    for (int sector = 1; sector <= 6; ++sector) {
+        // Create histogram
+        TH2D hist2D(Form("unrotatedY_vs_unrotatedX_sector%d", sector),
+                    Form("unRotated Y vs unRotated X Sector %d; unRotated X; unRotated Y", sector),
+                    100, -200, 200, 100, -200, 200);
+
+        // Use Foreach to extract data and fill histogram
+        rdf.Filter(Form("el_sector == %d", sector)).Foreach(
+            [&](const TVector3& vec) {
+                hist2D.Fill(vec.X(), vec.Y()); // Fill histogram
+            },
+            {"dcR1Vector3"} // Extract the vector without defining extra columns
+        );
+
+        // Draw the histogram
+        TCanvas canvas(Form("c8_sector%d", sector), Form("unRotated Y vs unRotated X Sector %d", sector), 800, 600);
+        hist2D.Draw("COLZ");
+        canvas.SaveAs((OUTPUT_FOLDER + Form("unrotatedY_vs_unrotatedX_sector%d.png", sector)).c_str());
+        std::cout << "Saved 2D histogram as unrotatedY_vs_unrotatedX_sector" << sector << ".png" << std::endl;
+    }
+}
+
 
 void plot_elastic_W_sector(ROOT::RDF::RNode rdf) {
     for (int sector = 1; sector <= 6; ++sector) {
@@ -207,14 +305,14 @@ int main() {
     // Ensure triangleCutParams is initialized
     initializeTriangleCut();
 
-    std::cout << "triangleCutParams check:\n";
-    for (int s = 0; s < 6; s++) {
-        for (int t = 0; t < 10; t++) {
-            std::cout << "Sector: " << s << ", Bin: " << t
-                      << " -> Zero: " << triangleCutParams[s][t][0]
-                      << ", Slope: " << triangleCutParams[s][t][1] << std::endl;
-        }
-    }
+    //std::cout << "triangleCutParams check:\n";
+    //for (int s = 0; s < 6; s++) {
+    //    for (int t = 0; t < 10; t++) {
+    //        std::cout << "Sector: " << s << ", Bin: " << t
+    //                  << " -> Zero: " << triangleCutParams[s][t][0]
+    //                  << ", Slope: " << triangleCutParams[s][t][1] << std::endl;
+    //    }
+    //}
 
     // Load ROOT file and convert TTrees to RDataFrame
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
@@ -225,7 +323,8 @@ int main() {
 
     // Define necessary variables in RDataFrame
 
-    auto init_rdf = rdf.Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
+    auto init_rdf = rdf.Filter("p4_ele_px.size() >0")
+                        .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
                         .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
                         .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
                         .Define("Q2", "-(el_initial - el_final).M2()")
@@ -238,7 +337,7 @@ int main() {
                         .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
                         .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()");
 
-    auto W_filtered_rdf = init_rdf//.Filter("W > 0.7 && W < 3.0") //W cut
+    auto W_filtered_rdf = init_rdf.Filter("W > 0.7 && W < 3.0") //W cut
                     .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
                         return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
                     .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
@@ -248,8 +347,10 @@ int main() {
                     .Define("el_abs_mom_corr", "return sqrt(el_final_corr.Px()*el_final_corr.Px() + el_final_corr.Py()*el_final_corr.Py() + el_final_corr.Pz()*el_final_corr.Pz());")
                     .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
                         return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
+                    .Filter("phiSpikeCut == true")
                     .Define("el_vz", "return p4_ele_vz[0];")
                     .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"})
+                    .Filter("el_vz_cut == true")
                     .Define("Hx_pcal", "return pcalHX[0];")
                     .Define("Hy_pcal", "return pcalHY[0];")
                     .Define("Hx_ecin", "return ecinHX[0];")
@@ -258,20 +359,68 @@ int main() {
                     .Define("Hy_ecout","return ecoutHY[0];")
                     .Define("BadElementKnockOut", [](double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int el_sector) {
                         return BadElementKnockOut(Hx_pcal, Hy_pcal, Hx_ecin, Hy_ecin, Hx_ecout, Hy_ecout, el_sector, 1); }, {"Hx_pcal", "Hy_pcal", "Hx_ecin", "Hy_ecin", "Hx_ecout", "Hy_ecout", "el_sector"})
+                    .Filter("BadElementKnockOut == true")
                     .Define("ecin_Energy", "return ecinE[0];")
                     .Define("pcal_Energy", "return pcalE[0];")
                     .Define("ecin_sf", "return ecin_Energy / el_final_corr.P();")
                     .Define("pcal_sf", "return pcal_Energy / el_final_corr.P();")
                     .Define("pBin", "return static_cast<int>(el_final_corr.P()/1);")
-        .Define("SFTriangleCut", [](double ecinE, double pcalE, const TLorentzVector& el_final_corr, int sector) {
-            float shift = 0.0f;
-            int pBin = static_cast<int>(el_final_corr.P()/1);
-            if (el_final_corr.P() > 10.5){
-            std::cout << "el_final_corr.P()=" << el_final_corr.P() << std::endl;}
-            return SFTriangleCut(ecinE, pcalE, triangleCutParams, sector, pBin, shift);
-        }, {"ecin_sf", "pcal_sf", "el_final_corr", "el_sector"})
-        .Filter("SFTriangleCut == true");
+                    .Define("SFTriangleCut", [](double ecinE, double pcalE, const TLorentzVector& el_final_corr, int sector) {
+                        float shift = 0.0f;
+                        int pBin = static_cast<int>(el_final_corr.P()/1);
+                        if (el_final_corr.P() > 10.5){
+                        std::cout << "el_final_corr.P()=" << el_final_corr.P() << std::endl;}
+                        return SFTriangleCut(ecinE, pcalE, triangleCutParams, sector, pBin, shift);}, {"ecin_sf", "pcal_sf", "el_final_corr", "el_sector"})
+                    .Filter("SFTriangleCut == true")
+                    .Define("dcR1Vector3", "return TVector3(dcXR1[0], dcYR1[0], dcZR1[0]);")
+                    .Define("dcR2Vector3", "return TVector3(dcXR2[0], dcYR2[0], dcZR2[0]);")
+                    .Define("dcR3Vector3", "return TVector3(dcXR3[0], dcYR3[0], dcZR3[0]);")
+                    .Define("dcR1Vector3_rot", [](TVector3 vec, int sec) {
+                        sec = sec-1;
+                        vec.RotateZ(-60 * sec / 57.2958);
+                        vec.RotateY(-25 / 57.2958);
+                        return vec;}, {"dcR1Vector3", "el_sector"})
+                    .Define("dcR2Vector3_rot", [](TVector3 vec, int sec) {
+                        sec = sec-1;
+                        vec.RotateZ(-60 * sec / 57.2958);
+                        vec.RotateY(-25 / 57.2958);
+                        return vec;}, {"dcR2Vector3", "el_sector"})
+                    .Define("dcR3Vector3_rot", [](TVector3 vec, int sec) {
+                        sec = sec-1;
+                        vec.RotateZ(-60 * sec / 57.2958);
+                        vec.RotateY(-25 / 57.2958);
+                        return vec;}, {"dcR3Vector3", "el_sector"})
+                    .Define("dcXY",
+                        [](const TVector3& dcR1, const TVector3& dcR2, const TVector3& dcR3) {
+                            return DCXY{dcR1.X(), dcR1.Y(), dcR2.X(), dcR2.Y(), dcR3.X(), dcR3.Y()};}, {"dcR1Vector3_rot", "dcR2Vector3_rot", "dcR3Vector3_rot"})
+                    .Define("CutDCfid",
+                        [](const DCXY& dcXY, int sec) {
+                            return CutDCfid(dcXY, sec, 1);}, {"dcXY", "el_sector"})
+                    .Filter("CutDCfid == true");
+                    
 
+
+//
+//int count = 0;
+//W_filtered_rdf.Foreach([&count](const TVector3& vec) {
+//    if (count < 20) {
+//        std::cout << "dcR1Vector3[" << count << "]: (" 
+//                  << vec.X() << ", " << vec.Y() << ", " << vec.Z() << ")" << std::endl;
+//        count++;
+//    }
+//}, {"dcR1Vector3"});
+//
+//count = 0;
+//W_filtered_rdf.Foreach([&count](const TVector3& vec) {
+//    if (count < 20) {
+//        std::cout << "dcR1Vector3_rot[" << count << "]: (" 
+//                  << vec.X() << ", " << vec.Y() << ", " << vec.Z() << ")" << std::endl;
+//        count++;
+//    }
+//}, {"dcR1Vector3_rot"});
+
+//rotatedY_vs_rotated_x_all_sectors(W_filtered_rdf);
+//unrotatedY_vs_unrotated_x_all_sectors(W_filtered_rdf);
 //    W_filtered_rdf.Display({"pBin"}, 10)->Print();
 //    W_filtered_rdf.Display({"ecin_sf"}, 10)->Print();
 //    W_filtered_rdf.Display({"pcal_sf"}, 10)->Print();
@@ -283,20 +432,20 @@ int main() {
     //W_filtered_rdf.Filter("SFTriangleCut == true").Display({"SFTriangleCut"}, 100)->Print();
 
     // Print column names
-//    std::cout << "Columns in RDataFrame:" << std::endl;
-//    for (const auto &col : W_filtered_rdf.GetColumnNames()) {
-//        std::cout << col << std::endl;
-//    }
-
+    std::cout << "Columns in RDataFrame:" << std::endl;
+    for (const auto &col : W_filtered_rdf.GetColumnNames()) {
+        std::cout << col << std::endl;
+    }
+     
     // Generate plots
-    plot_1d_abs_mom(W_filtered_rdf);
-    plot_1d_W(W_filtered_rdf);
-    plot_1d_QSquared(W_filtered_rdf);
-    plot_2d_W_vs_QSquared(W_filtered_rdf);
-    plot_elastic_W_sector(W_filtered_rdf);
-    plot_1d_el_final_corr_P(W_filtered_rdf);
-      plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
-plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
+    //plot_1d_abs_mom(W_filtered_rdf);
+    //plot_1d_W(W_filtered_rdf);
+    //plot_1d_QSquared(W_filtered_rdf);
+    //plot_2d_W_vs_QSquared(W_filtered_rdf);
+    //plot_elastic_W_sector(W_filtered_rdf);
+    //plot_1d_el_final_corr_P(W_filtered_rdf);
+    //plot_2d_pcal_sf_vs_ecin_sf(W_filtered_rdf);
+    //plot_2d_pcalsf_vs_ecinsf_afterW_Trianglecut_bin_sector(W_filtered_rdf);
 
 
     return 0;
