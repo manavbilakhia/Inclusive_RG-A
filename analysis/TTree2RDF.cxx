@@ -17,6 +17,7 @@
 #include <TLine.h> 
 #include <TLegend.h> 
 #include <string>
+#include <cmath>
 
 // Define the root file path
 std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
@@ -285,6 +286,54 @@ void plot_elastic_W_sector(ROOT::RDF::RNode rdf) {
     }
 }
 
+void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& outputFileName) {
+    const float wBinSize = 0.05;
+    const unsigned nWBins = 30;
+    const float lowBorderW = 1.025;
+    const float highBorderW = lowBorderW + wBinSize * nWBins;
+
+    // Create a ROOT file to store all histograms
+    TFile outputFile(outputFileName.c_str(), "RECREATE");
+
+    for (int sector = 1; sector <= 6; ++sector) {
+        std::vector<ROOT::RDF::RResultPtr<TH1D>> histograms; // Store histograms
+
+        for (int q2bin = 6; q2bin <= 14; ++q2bin) {
+            // Define filtered dataframe
+            auto filtered_df = rdf.Filter(Form("el_sector == %d && Q2_bin == %d", sector, q2bin));
+
+            // Create histogram using Histo1D
+            auto hist1D = filtered_df.Histo1D(
+                {Form("W_for_each_Q2_bin_sector%d_Q2bin%d", sector, q2bin),
+                 Form("W_for_each_Q2_bin_sector%d_Q2bin%d; W (GeV); Events", sector, q2bin),
+                 nWBins, lowBorderW, highBorderW},
+                "W_corr"
+            );
+
+            histograms.push_back(hist1D); // Store histogram
+
+            // Force execution
+            hist1D->GetEntries();  // Forces computation
+        }
+
+        // Write histograms to the ROOT file
+        outputFile.cd();
+        for (auto& hist : histograms) {
+            hist->Write();
+        }
+
+        std::cout << "Saved histograms for sector " << sector << " into " << outputFileName << std::endl;
+    }
+
+    // Close the ROOT file
+    outputFile.Close();
+}
+
+
+
+
+
+
 
 std::pair<double, double> calculate_phi_theta(TLorentzVector el_final, int el_sector) {
     float toRD = 57.2958; // 360/2pi
@@ -306,6 +355,7 @@ int main() {
     initializeTriangleCut();
 
     // Load ROOT file and convert TTrees to RDataFrame
+    ROOT::EnableImplicitMT(); // Enable multi-threading
     auto rdf = convert_ttrees_to_rdataframe(root_file_path);
     if (rdf.GetColumnNames().empty()) {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;
@@ -392,19 +442,34 @@ int main() {
                         .Define("Q2", "-(el_initial - el_final).M2()")
                         .Define("W", "(el_initial - el_final + proton_initial).M()")
                         .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
-                        .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()");
+                        .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()")
+                        .Define("W_bin", [](double W_corr) {
+                            double low_bin = 1.025;
+                            double high_bin = 2.525;
+                            double bin_width = 0.05;
+                            if (W_corr < low_bin || W_corr >= high_bin) return -1; // Out of range
+                                return static_cast<int>((W_corr - low_bin) / bin_width);}, {"W_corr"})
+                        .Define("Q2_bin", [](double Q2_corr) {
+                            double low_bin = 1;
+                            double high_bin = 2500;
+                            double bin_number = 50;
+                            double delta_Q2 = std::log(high_bin/low_bin)/bin_number;
+                            int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
+                                return q2bin;}, {"Q2_corr"});
 
 
 
-    rotatedY_vs_rotated_x_all_sectors(init_rdf);
+    W_for_each_Q2_bin(init_rdf, "W_for_each_Q2_bin.root");
+    //init_rdf.Display({"Q2_corr", "Q2_bin"},100)->Print();
+    //rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
     //std::cout << "Columns in RDataFrame:" << std::endl;
     //for (const auto &col : init_rdf.GetColumnNames()) {
     //    std::cout << col << std::endl;
     //}
      
-    plot_1d_W(init_rdf);
-    plot_2d_W_vs_QSquared(init_rdf);
+    //plot_1d_W(init_rdf);
+    //plot_2d_W_vs_QSquared(init_rdf);
 
     return 0;
 }
