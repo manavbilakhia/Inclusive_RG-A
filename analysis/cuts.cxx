@@ -17,7 +17,7 @@
 // IT IS IMPORTANT TO SET IT EVERY TIME DF APPLIES THE CUTS
 // IT IS USED FOR SF CUT ONLY (SO FAR)
 
-bool isMC = false;
+// bool isMC = false;
 
 //Root file and plot path 
 //string filePath = "files/";
@@ -371,8 +371,8 @@ inline auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int
     return dp/pp;
 };
 // sector should be 1:6
-inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr){
-  if (isMC) return (TLorentzVector) {ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e)};
+inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData){
+  if (isData == 0) return (TLorentzVector) {ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e)};
   else{
      auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
      double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
@@ -825,8 +825,8 @@ bool SfCutValerii_Edepos(const double sf,const double Edep,const int sec,const i
 		
 
     // Function to initialize the triangle cut parameters
-void initializeTriangleCut() {
-    readTriangleCut(triangleCutParams, 1);
+void initializeTriangleCut(int isData) {
+    readTriangleCut(triangleCutParams, isData);
 }
 	  // applying the cut
 	  // the input is kin.ecinE/kin.momentum, kin.pcalE/kin.momentum

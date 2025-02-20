@@ -2,12 +2,13 @@
 #SBATCH --ntasks=1
 #SBATCH --job-name=HIPO_to_ROOT
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=$SLURM_JOB_USER
+#SBATCH --mail-user=aleksandr.bulgakov1999@gmail.com
 #SBATCH --output=/farm_out/%u/%x-%A_%a-%j-%N.out
 #SBATCH --error=/farm_out/%u/%x-%A_%a-%j-%N.err
-#SBATCH --partition=ifarm
+#SBATCH --partition=production
 #SBATCH --account=clas12
-#SBATCH --time=12:00:00
+#SBATCH --mem-per-cpu=5000
+#SBATCH --time=24:00:00
 
 source /u/home/bulgakov/myenv_clas12.sh
 

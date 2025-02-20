@@ -19,6 +19,9 @@
 #include <string>
 #include <cmath>
 
+
+int isData = 1;  // 1 for real data, 0 for MC
+
 // Define the root file path
 std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
 
@@ -286,16 +289,21 @@ void plot_elastic_W_sector(ROOT::RDF::RNode rdf) {
     }
 }
 
-void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& outputFileName) {
+
+
+void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& root_filename) {
     const float wBinSize = 0.05;
     const unsigned nWBins = 30;
     const float lowBorderW = 1.025;
     const float highBorderW = lowBorderW + wBinSize * nWBins;
 
-    // Create a ROOT file to store all histograms
-    TFile outputFile(outputFileName.c_str(), "RECREATE");
+    // Open a ROOT file to store histograms
+    TFile rootFile((OUTPUT_FOLDER + root_filename).c_str(), "RECREATE");
 
     for (int sector = 1; sector <= 6; ++sector) {
+        TCanvas canvas("c8", Form("W_for_each_Q2_bin_sector %d", sector), 1200, 800);
+        canvas.Divide(5, 2); // Create 10 subpads (5 columns × 2 rows)
+
         std::vector<ROOT::RDF::RResultPtr<TH1D>> histograms; // Store histograms
 
         for (int q2bin = 6; q2bin <= 14; ++q2bin) {
@@ -304,8 +312,8 @@ void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& outputFileName) 
 
             // Create histogram using Histo1D
             auto hist1D = filtered_df.Histo1D(
-                {Form("W_for_each_Q2_bin_sector%d_Q2bin%d", sector, q2bin),
-                 Form("W_for_each_Q2_bin_sector%d_Q2bin%d; W (GeV); Events", sector, q2bin),
+                {Form("W_for_each_Q2_bin_%d_sector_%d", q2bin, sector),
+                 Form("W for Q2 bin %d, Sector %d; W (GeV); Events", q2bin, sector),
                  nWBins, lowBorderW, highBorderW},
                 "W_corr"
             );
@@ -314,22 +322,26 @@ void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& outputFileName) 
 
             // Force execution
             hist1D->GetEntries();  // Forces computation
+
+            // Draw histogram on correct subpad
+            canvas.cd(q2bin - 4);  // Adjust indexing so q2bin=5 maps to pad 1
+            hist1D->Draw();
+
+            // Save histogram to ROOT file
+            hist1D->Write();  
         }
 
-        // Write histograms to the ROOT file
-        outputFile.cd();
-        for (auto& hist : histograms) {
-            hist->Write();
-        }
-
-        std::cout << "Saved histograms for sector " << sector << " into " << outputFileName << std::endl;
+        // Save the canvas as PNG
+        std::string png_filename = OUTPUT_FOLDER + Form("W_for_each_Q2_bin_sector_%d.png", sector);
+        canvas.SaveAs(png_filename.c_str());
+        std::cout << "Saved histogram for sector " << sector << " as " << png_filename << std::endl;
     }
 
     // Close the ROOT file
-    outputFile.Close();
+    rootFile.Close();
+    std::cout << "Histograms saved in ROOT file: " << OUTPUT_FOLDER + root_filename<<std::endl;
+
 }
-
-
 
 
 
@@ -352,7 +364,7 @@ std::pair<double, double> calculate_phi_theta(TLorentzVector el_final, int el_se
 
 int main() {
     // Ensure triangleCutParams is initialized
-    initializeTriangleCut();
+    initializeTriangleCut(isData);
 
     // Load ROOT file and convert TTrees to RDataFrame
     ROOT::EnableImplicitMT(); // Enable multi-threading
@@ -372,7 +384,10 @@ int main() {
                         .Define("el_py", "return p4_ele_py[0];")
                         .Define("el_pz", "return p4_ele_pz[0];")
                         .Define("el_sector", "return int(sectorE[0]);")
-                        .Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
+                        //.Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
+                        .Define("el_final_corr", [=](double el_px, double el_py, double el_pz, int el_sector) {
+                            return Get4mom_corr(el_px, el_py, el_pz, el_sector, isData);
+                        }, {"el_px", "el_py", "el_pz", "el_sector"})
                         .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
                             return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
                         .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
@@ -437,7 +452,7 @@ int main() {
                         .Define("sf", "return Edep / el_final_corr.P();")
                         .Define("SfCut", [](double sf, double Edep, int sec) {
                             sec = sec-1;
-                            return SfCutValerii_Edepos(sf, Edep, sec, 1, 1); }, {"sf", "Edep", "el_sector"})
+                            return SfCutValerii_Edepos(sf, Edep, sec, 1, isData); }, {"sf", "Edep", "el_sector"})
                         .Filter("SfCut == true")
                         .Define("Q2", "-(el_initial - el_final).M2()")
                         .Define("W", "(el_initial - el_final + proton_initial).M()")
@@ -457,9 +472,8 @@ int main() {
                             int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
                                 return q2bin;}, {"Q2_corr"});
 
-
-
-    W_for_each_Q2_bin(init_rdf, "W_for_each_Q2_bin.root");
+    W_for_each_Q2_bin(init_rdf, "W_for_each_Q2_bin.root");  
+    plot_elastic_W_sector(init_rdf);                
     //init_rdf.Display({"Q2_corr", "Q2_bin"},100)->Print();
     //rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
