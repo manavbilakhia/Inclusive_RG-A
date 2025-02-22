@@ -18,12 +18,18 @@
 #include <TLegend.h> 
 #include <string>
 #include <cmath>
+#include <chrono>
 
 
 int isData = 1;  // 1 for real data, 0 for MC
+bool isBigStatistics = false;
+bool toFarm = false;
 
-// Define the root file path
-std::string root_file_path = "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
+std::string farm_out = (toFarm == true) ? "/farm_out/" : "/";
+std::string root_file_path = (isBigStatistics == true) 
+? "../data/outH2R/allRunsP1NickPart_2023.dat_QADB_Valerii_runs_first_electron.root"
+: "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
+
 
 // Define the suffix manually using substr()
 std::string target_suffix = "trigger_electron.root";
@@ -34,7 +40,7 @@ std::string suffix =
     : "first_electron";
 
 // Define the output folder as a constant
-const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + "/";
+const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + farm_out ;
 
 
 
@@ -207,6 +213,8 @@ void rotatedY_vs_rotated_x_all_sectors(ROOT::RDF::RNode rdf) {
     std::cout << "Saved 2D histograms for all sectors on one canvas." << std::endl;
 }
 
+
+
 void unrotatedY_vs_unrotated_x_all_sectors(ROOT::RDF::RNode rdf) {
     TCanvas canvas("c8", "unRotated Y vs unRotated X for All Sectors", 1200, 800);
     canvas.Divide(3, 2); // Create 6 subpads (3 columns × 2 rows)
@@ -232,6 +240,9 @@ void unrotatedY_vs_unrotated_x_all_sectors(ROOT::RDF::RNode rdf) {
     canvas.SaveAs((OUTPUT_FOLDER + "unrotatedY_vs_unrotatedX_all_sectors.png").c_str());
     std::cout << "Saved 2D histograms for all sectors on one canvas." << std::endl;
 }
+
+
+
 
 void unrotatedY_vs_unrotated_x_sectorwise(ROOT::RDF::RNode rdf) {
     for (int sector = 1; sector <= 6; ++sector) {
@@ -343,6 +354,65 @@ void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& root_filename) {
 
 }
 
+void plotWvsQ2andSector_SaveROOT(ROOT::RDF::RNode rdf, const std::string& outputFileName) {
+    const float wBinSize = 0.05;
+    const unsigned nWBins = 30;
+    const float lowBorderW = 1.025;
+    const float highBorderW = lowBorderW + wBinSize * nWBins;
+
+    // Create a 3D histogram
+    auto h3 = rdf.Histo3D(
+        {"h3", "W vs Q2_bin vs Sector;W_{corr};Q2_bin;Sector",
+         nWBins, lowBorderW, highBorderW, // W axis
+         9, 6, 15,                        // Q2_bin axis (bins for 6–14)
+         6, 1, 7},                        // Sector axis (bins for 1–6)
+        "W_corr", "Q2_bin", "el_sector");
+    TH3* h3_ptr = h3.GetPtr();
+
+    // Open output ROOT file for saving histograms
+    TFile outFile((OUTPUT_FOLDER + outputFileName).c_str(), "RECREATE");
+    if (outFile.IsZombie()) {
+        std::cerr << "Error: Cannot open output file " << outputFileName << std::endl;
+        return;
+    }
+
+    // Loop over sectors (1–6)
+    for (int sector = 1; sector <= 6; ++sector) {
+        TCanvas* c = new TCanvas(Form("c_sector%d", sector), Form("Sector %d", sector), 1200, 800);
+        c->Divide(3, 3);
+
+        // Loop over Q2_bin values (6–14)
+        for (int i = 0; i < 9; ++i) {
+            int q2_bin = 6 + i;
+            c->cd(i + 1);
+
+            // Project W distribution for given sector & Q2_bin
+            TH1D* h_proj = (TH1D*)h3_ptr->ProjectionX(
+                Form("h_W_sec%d_Q2bin%d", sector, q2_bin),
+                q2_bin - 5, q2_bin - 5,   // Correct Q2_bin indexing
+                sector, sector);         // Correct sector indexing
+
+            // Histogram appearance
+            h_proj->SetTitle(Form("Sector %d, Q2_bin %d;W_{corr};Counts", sector, q2_bin));
+            h_proj->SetLineColor(1);
+            h_proj->Draw("HIST");
+
+            // === SAVE HISTOGRAM INTO ROOT FILE ===
+            outFile.cd();
+            h_proj->Write();  // Writes each histogram with unique name
+        }
+
+        c->Update();
+        // === SAVE CANVAS AS PNG FILE ===
+        std::string png_filename = OUTPUT_FOLDER + Form("NEW_W_for_each_Q2_bin_sector_%d.png", sector);
+        c->SaveAs(png_filename.c_str());
+        delete c;  // Clean up canvas after saving
+    }
+
+    // Close the ROOT file after writing all histograms
+    outFile.Close();
+    std::cout << "All histograms saved in: " << outputFileName << std::endl;
+}
 
 
 
@@ -363,6 +433,7 @@ std::pair<double, double> calculate_phi_theta(TLorentzVector el_final, int el_se
 }
 
 int main() {
+    auto start = std::chrono::high_resolution_clock::now(); // STRAT
     // Ensure triangleCutParams is initialized
     initializeTriangleCut(isData);
 
@@ -470,11 +541,25 @@ int main() {
                             double bin_number = 50;
                             double delta_Q2 = std::log(high_bin/low_bin)/bin_number;
                             int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
-                                return q2bin;}, {"Q2_corr"});
+                                return q2bin;}, {"Q2_corr"})
+                        .Define("Q2W_bin","30*Q2_bin + W_bin");
 
-    W_for_each_Q2_bin(init_rdf, "W_for_each_Q2_bin.root");  
-    plot_elastic_W_sector(init_rdf);                
-    //init_rdf.Display({"Q2_corr", "Q2_bin"},100)->Print();
+
+    
+    plotWvsQ2andSector_SaveROOT(init_rdf,"qwerty.root");
+    //W_for_each_Q2_bin(init_rdf,"JOPA.root");
+    //rotatedY_vs_rotated_x_sectorwise(init_rdf);
+
+    //W_for_each_Q2_bin(init_rdf, "W_for_each_Q2_bin.root");  
+    //plot_elastic_W_sector(init_rdf);      
+    //plot_1d_abs_mom(init_rdf);  
+    //unrotatedY_vs_unrotated_x_all_sectors(init_rdf);   
+    //rotatedY_vs_rotated_x_all_sectors(init_rdf);  
+    //plot_1d_W(init_rdf);
+    //plot_1d_Q2corr(init_rdf);  
+    //plot_2d_W_vs_QSquared(init_rdf);
+    
+    //init_rdf.Display({"Q2_bin","W_bin","Q2W_bin"},100)->Print();
     //rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
     //std::cout << "Columns in RDataFrame:" << std::endl;
@@ -484,6 +569,12 @@ int main() {
      
     //plot_1d_W(init_rdf);
     //plot_2d_W_vs_QSquared(init_rdf);
+
+
+    auto end = std::chrono::high_resolution_clock::now(); // END
+
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time of execution: " << elapsed.count() << " sec" << std::endl;
 
     return 0;
 }
