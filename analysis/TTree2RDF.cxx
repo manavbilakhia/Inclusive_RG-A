@@ -288,7 +288,6 @@ void plot_elastic_W_sector(ROOT::RDF::RNode rdf) {
 
         // Draw vertical line at proton mass (0.938 GeV)
         TLine *line = new TLine(0.938, 0, 0.938, hist1->GetMaximum());
-        line->SetLineColor(kBlack);
         line->SetLineStyle(2); // Dashed line
         line->SetLineWidth(2);
         line->Draw("SAME");
@@ -394,7 +393,6 @@ void plotWvsQ2andSector_SaveROOT(ROOT::RDF::RNode rdf, const std::string& output
 
             // Histogram appearance
             h_proj->SetTitle(Form("Sector %d, Q2_bin %d;W_{corr};Counts", sector, q2_bin));
-            h_proj->SetLineColor(1);
             h_proj->Draw("HIST");
 
             // === SAVE HISTOGRAM INTO ROOT FILE ===

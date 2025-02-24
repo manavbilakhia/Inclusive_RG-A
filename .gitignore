@@ -43,3 +43,6 @@ __pycache__/
 Data_Files/Monte_Carlo_SIDIS/Pass2/Simulated_Single_Pion_Channel_epipX_Inbending_With_Dp_Fa18_P2_MC_V3_File_Incomplete.root
 .nfs00000000087342ef00021c35
 /analysis*
+/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/utils/hipo2root/toConvertAllRunP1.sh
+/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/utils/toFarm/
+/w/hallb-scshelf2102/clas12/manavb/grad/Inclusive_RG-A/utils/hipo2root/logs/

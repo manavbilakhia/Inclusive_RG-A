@@ -171,7 +171,7 @@ void processHipo(TString inputFile){
   vector<int> compSci;
     
 
-  TFile outFile(Form("../../data/outH2R/%s_QADB_Valerii_runs_first_electron.root",inputFile.Data()), "recreate");
+  TFile outFile(Form("../../data/outH2R_test/%s_QADB_Valerii_runs_first_electron.root",inputFile.Data()), "recreate");
   TTree out_tree("out_tree","out_tree");
     
   //electrons                                                                                                                                                                                                 
