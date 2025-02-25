@@ -21,24 +21,29 @@
 #include <chrono>
 
 
+// Global variables
 int isData = 1;  // 1 for real data, 0 for MC
 bool isBigStatistics = false;
 bool toFarm = false;
 
-std::string farm_out = (toFarm == true) ? "/farm_out/" : "/";
-std::string root_file_path = (isBigStatistics == true) 
-? "../data/outH2R/allRunsP1NickPart_2023.dat_QADB_Valerii_runs_first_electron.root"
-: "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root";
+// Determine the output folder
+const std::string farm_out = toFarm ? "/farm_out/" : "/";
+
+// Determine the root file path using ternary operators
+const std::string root_file_path = (isData == 1) ? 
+    (isBigStatistics ? 
+        "../data/outH2R/allRunsP1NickPart_2023.dat_QADB_Valerii_runs_first_electron.root" :
+        "../data/outH2R_test/allRunsP1NickPart_2023_short.dat_QADBtest_first_electron.root") 
+    : (isBigStatistics ? 
+        "/w/hallb-scshelf2102/clas12/valerii/data/outH2R/simElasFix_iter3/SimIter3_10.datAna.root" :
+        "/w/hallb-scshelf2102/clas12/valerii/data/outH2R/simElasFix_iter3/SimIter3_10.datAna.root");
 
 
-// Define the suffix manually using substr()
 std::string target_suffix = "trigger_electron.root";
-std::string suffix = 
-    (root_file_path.size() >= target_suffix.size() && 
+std::string suffix = (root_file_path.size() >= target_suffix.size() && 
      root_file_path.substr(root_file_path.size() - target_suffix.size()) == target_suffix) 
     ? "trigger_electron" 
     : "first_electron";
-
 // Define the output folder as a constant
 const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + farm_out ;
 
@@ -445,8 +450,103 @@ int main() {
         return 1;
     }
 
-    // Define necessary variables in RDataFrame
-
+    auto init_rdf_MC = rdf.Filter("p4_ele_px.size() >0")
+                        .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
+                        .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
+                        .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
+                        .Define("el_px", "return p4_ele_px[0];")
+                        .Define("el_py", "return p4_ele_py[0];")
+                        .Define("el_pz", "return p4_ele_pz[0];")
+                        .Define("el_sector", "return int(sectorE[0]);")
+                        .Define("el_final_corr", [=](double el_px, double el_py, double el_pz, int el_sector) { // Change this to smearing
+                            return Get4mom_corr(el_px, el_py, el_pz, el_sector, isData);
+                        }, {"el_px", "el_py", "el_pz", "el_sector"})
+                        .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
+                            return calculate_phi_theta(el_final, el_sector).first;}, {"el_final_corr", "el_sector"})
+                        .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
+                            return calculate_phi_theta(el_final, el_sector).second;}, {"el_final_corr", "el_sector"})
+                        .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
+                            return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
+                        .Filter("phiSpikeCut == true")
+                        .Define("el_vz", "return p4_ele_vz[0];")
+                        .Define("el_vz_cut", [](double el_vz) { return CutVz(el_vz, 1); }, {"el_vz"})
+                        .Filter("el_vz_cut == true")
+                        .Define("Hx_pcal", "return pcalHX[0];")
+                        .Define("Hy_pcal", "return pcalHY[0];")
+                        .Define("Hx_ecin", "return ecinHX[0];")
+                        .Define("Hy_ecin", "return ecinHY[0];")
+                        .Define("Hx_ecout", "return ecoutHX[0];")
+                        .Define("Hy_ecout","return ecoutHY[0];")
+                        .Define("BadElementKnockOut", [](double Hx_pcal, double Hy_pcal, double Hx_ecin, double Hy_ecin, double Hx_ecout, double Hy_ecout, int el_sector) {
+                            return BadElementKnockOut(Hx_pcal, Hy_pcal, Hx_ecin, Hy_ecin, Hx_ecout, Hy_ecout, el_sector, 1); }, {"Hx_pcal", "Hy_pcal", "Hx_ecin", "Hy_ecin", "Hx_ecout", "Hy_ecout", "el_sector"})
+                        .Filter("BadElementKnockOut == true")
+                        .Define("ecin_Energy", "return ecinE[0];")
+                        .Define("pcal_Energy", "return pcalE[0];")
+                        .Define("ecout_Energy", "return ecoutE[0];")
+                        .Define("ecin_sf", "return ecin_Energy / el_final_corr.P();")
+                        .Define("pcal_sf", "return pcal_Energy / el_final_corr.P();")
+                        .Define("SFTriangleCut", [](double ecinE, double pcalE, const TLorentzVector& el_final_corr, int sector) {
+                            float shift = 0.0f;
+                            int pBin = static_cast<int>(el_final_corr.P()/1);
+                            return SFTriangleCut(ecinE, pcalE, triangleCutParams, sector, pBin, shift);}, {"ecin_sf", "pcal_sf", "el_final_corr", "el_sector"})
+                        .Filter("SFTriangleCut == true")
+                        .Define("dcR1Vector3", "return TVector3(dcXR1[0], dcYR1[0], dcYZ1[0]);")
+                        .Define("dcR2Vector3", "return TVector3(dcXR2[0], dcYR2[0], dcZR2[0]);")
+                        .Define("dcR3Vector3", "return TVector3(dcXR3[0], dcYR3[0], dcZR3[0]);")
+                        .Define("dcR1Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR1Vector3", "el_sector"})
+                        .Define("dcR2Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR2Vector3", "el_sector"})
+                        .Define("dcR3Vector3_rot", [](TVector3 vec, int sec) {
+                            sec = sec-1;
+                            vec.RotateZ(-60 * sec / 57.2958);
+                            vec.RotateY(-25 / 57.2958);
+                            return vec;}, {"dcR3Vector3", "el_sector"})
+                        .Define("dcXY",
+                            [](const TVector3& dcR1, const TVector3& dcR2, const TVector3& dcR3) {
+                                return DCXY{dcR1.X(), dcR1.Y(), dcR2.X(), dcR2.Y(), dcR3.X(), dcR3.Y()};}, {"dcR1Vector3_rot", "dcR2Vector3_rot", "dcR3Vector3_rot"})
+                        .Define("CutDCfid",
+                            [](const DCXY& dcXY, int sec) {
+                                return CutDCfid(dcXY, sec, 1);}, {"dcXY", "el_sector"})
+                        .Filter("CutDCfid == true")
+                        .Define("pcalLu_f", "return pcalLu[0];")
+                        .Define("pcalLv_f", "return pcalLv[0];")
+                        .Define("pcalLw_f", "return pcalLw[0];")
+                        .Define ("PCALFid_VW", [](double pcalLu, double pcalLv, double pcalLw) {
+                            return PCALFid_VW(pcalLv, pcalLw, pcalLu, 1);  }, {"pcalLu_f", "pcalLv_f", "pcalLw_f"})
+                        .Filter("PCALFid_VW == true")
+                        .Define("Edep", "return ecout_Energy + ecin_Energy + pcal_Energy;")
+                        .Define("sf", "return Edep / el_final_corr.P();")
+                        .Define("SfCut", [](double sf, double Edep, int sec) {
+                            sec = sec-1;
+                            return SfCutValerii_Edepos(sf, Edep, sec, 1, isData); }, {"sf", "Edep", "el_sector"})
+                        .Filter("SfCut == true")
+                        .Define("Q2", "-(el_initial - el_final).M2()")
+                        .Define("W", "(el_initial - el_final + proton_initial).M()")
+                        .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
+                        .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()")
+                        .Define("W_bin", [](double W_corr) {
+                            double low_bin = 1.025;
+                            double high_bin = 2.525;
+                            double bin_width = 0.05;
+                            if (W_corr < low_bin || W_corr >= high_bin) return -1; // Out of range
+                                return static_cast<int>((W_corr - low_bin) / bin_width);}, {"W_corr"})
+                        .Define("Q2_bin", [](double Q2_corr) {
+                            double low_bin = 1;
+                            double high_bin = 2500;
+                            double bin_number = 50;
+                            double delta_Q2 = std::log(high_bin/low_bin)/bin_number;
+                            int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
+                                return q2bin;}, {"Q2_corr"})
+                        .Define("Q2W_bin","30*Q2_bin + W_bin");
+    
+    
     auto init_rdf = rdf.Filter("p4_ele_px.size() >0")
                         .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
                         .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
@@ -455,14 +555,13 @@ int main() {
                         .Define("el_py", "return p4_ele_py[0];")
                         .Define("el_pz", "return p4_ele_pz[0];")
                         .Define("el_sector", "return int(sectorE[0]);")
-                        //.Define("el_final_corr", +Get4mom_corr, {"el_px", "el_py", "el_pz", "el_sector"})
                         .Define("el_final_corr", [=](double el_px, double el_py, double el_pz, int el_sector) {
                             return Get4mom_corr(el_px, el_py, el_pz, el_sector, isData);
                         }, {"el_px", "el_py", "el_pz", "el_sector"})
                         .Define("el_phi", [](const TLorentzVector& el_final, int el_sector) {
-                            return calculate_phi_theta(el_final, el_sector).first;}, {"el_final", "el_sector"})
+                            return calculate_phi_theta(el_final, el_sector).first;}, {"el_final_corr", "el_sector"})
                         .Define("el_theta", [](const TLorentzVector& el_final, int el_sector) {
-                            return calculate_phi_theta(el_final, el_sector).second;}, {"el_final", "el_sector"})
+                            return calculate_phi_theta(el_final, el_sector).second;}, {"el_final_corr", "el_sector"})
                         .Define("phiSpikeCut", [](double el_phi, double el_theta, int el_sector) {
                             return phiSpikeCut(el_phi, el_theta, el_sector, 1); }, {"el_phi", "el_theta", "el_sector"})
                         .Filter("phiSpikeCut == true")
@@ -546,7 +645,7 @@ int main() {
 
 
     
-    plotWvsQ2andSector_SaveROOT(init_rdf,"qwerty.root");
+    //plotWvsQ2andSector_SaveROOT(init_rdf,"qwerty.root");
     //W_for_each_Q2_bin(init_rdf,"JOPA.root");
     //rotatedY_vs_rotated_x_sectorwise(init_rdf);
 
@@ -562,10 +661,10 @@ int main() {
     //init_rdf.Display({"Q2_bin","W_bin","Q2W_bin"},100)->Print();
     //rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
-    //std::cout << "Columns in RDataFrame:" << std::endl;
-    //for (const auto &col : init_rdf.GetColumnNames()) {
-    //    std::cout << col << std::endl;
-    //}
+    std::cout << "Columns in RDataFrame:" << std::endl;
+    for (const auto &col : rdf.GetColumnNames()) {
+        std::cout << col << std::endl;
+    }
      
     //plot_1d_W(init_rdf);
     //plot_2d_W_vs_QSquared(init_rdf);
