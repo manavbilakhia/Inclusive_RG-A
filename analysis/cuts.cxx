@@ -10,6 +10,7 @@
 #include <TH1D.h>
 #include <TH2D.h>
 #include <TKey.h>
+#include <TRandom3.h>
 #include <fstream>
 #include <stdio.h>
 
@@ -370,26 +371,18 @@ inline auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int
 
     return dp/pp;
 };
-// sector should be 1:6
-inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData){
-  if (isData == 0) return (TLorentzVector) {ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e)};
-  else{
-     auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
-     double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
-     TLorentzVector elec_corrected(fe*ex, fe*ey, fe*ez, energy);   
-     return elec_corrected;  
-  }
-}
-/*
+
+
+//smearing
+
 TRandom3 *myMC;  // Needed for smearing
 void fastMC(void){
         myMC = new TRandom3(0);
 }
- fastMC();
 
 
 //New Smearing:
-auto smear_oneFactor = [&](const TLorentzVector V4rec){
+auto smear_oneFactor = [](const TLorentzVector V4rec){
 	// smear factor:
 	
 	double elTh_indeg = V4rec.Theta() * 57.2958;
@@ -425,8 +418,20 @@ auto smear_oneFactor = [&](const TLorentzVector V4rec){
 };
 
 
+// sector should be 1:6
+inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData){
+  if (isData == 0) {
+    TLorentzVector V4(ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e));
+    return smear_oneFactor(V4);
+  }
+  else{
+     auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
+     double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
+     TLorentzVector elec_corrected(fe*ex, fe*ey, fe*ez, energy);   
+     return elec_corrected;  
+  }
+}
 
-*/
 
 struct line{
     double k;

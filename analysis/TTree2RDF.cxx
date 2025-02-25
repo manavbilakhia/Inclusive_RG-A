@@ -16,15 +16,16 @@
 #include <fstream>
 #include <TLine.h> 
 #include <TLegend.h> 
+#include <TEntryList.h>
 #include <string>
 #include <cmath>
 #include <chrono>
 
 
 // Global variables
-int isData = 1;  // 1 for real data, 0 for MC
-bool isBigStatistics = false;
-bool toFarm = false;
+int isData = 0;  // 1 for real data, 0 for MC
+bool isBigStatistics = true;
+bool toFarm = true;
 
 // Determine the output folder
 const std::string farm_out = toFarm ? "/farm_out/" : "/";
@@ -45,7 +46,9 @@ std::string suffix = (root_file_path.size() >= target_suffix.size() &&
     ? "trigger_electron" 
     : "first_electron";
 // Define the output folder as a constant
-const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + farm_out ;
+//const std::string OUTPUT_FOLDER = "../analysis_out_" + suffix + farm_out ;
+
+const std::string OUTPUT_FOLDER = (isData == 1) ? "../analysis_out_" + suffix + farm_out : "../analysis_out_MC_" + suffix + farm_out;
 
 
 
@@ -360,6 +363,7 @@ void W_for_each_Q2_bin(ROOT::RDF::RNode rdf, const std::string& root_filename) {
 }
 
 void plotWvsQ2andSector_SaveROOT(ROOT::RDF::RNode rdf, const std::string& outputFileName) {
+    
     const float wBinSize = 0.05;
     const unsigned nWBins = 30;
     const float lowBorderW = 1.025;
@@ -440,6 +444,7 @@ std::pair<double, double> calculate_phi_theta(TLorentzVector el_final, int el_se
 int main() {
     auto start = std::chrono::high_resolution_clock::now(); // STRAT
     // Ensure triangleCutParams is initialized
+    fastMC();
     initializeTriangleCut(isData);
 
     // Load ROOT file and convert TTrees to RDataFrame
@@ -449,8 +454,9 @@ int main() {
         std::cerr << "Error: Could not create RDataFrame." << std::endl;
         return 1;
     }
-
-    auto init_rdf_MC = rdf.Filter("p4_ele_px.size() >0")
+    
+   auto init_rdf_MC = rdf//.Range(1'000'000)  // Select first 1M events
+                        .Filter("p4_ele_px.size() >0")
                         .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
                         .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
                         .Define("proton_initial", "return TLorentzVector(0, 0, 0, 0.938);")
@@ -544,9 +550,13 @@ int main() {
                             double delta_Q2 = std::log(high_bin/low_bin)/bin_number;
                             int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
                                 return q2bin;}, {"Q2_corr"})
-                        .Define("Q2W_bin","30*Q2_bin + W_bin");
+                        .Define("Q2W_bin","30*Q2_bin + W_bin")
+                        .Define("el_final_P", "el_final.P()")  // Define new column
+                        .Define("el_final_corr_P", "el_final_corr.P()");  // Define new column
     
     
+
+   /*
     auto init_rdf = rdf.Filter("p4_ele_px.size() >0")
                         .Define("el_initial", "return TLorentzVector(0, 0, 10.6, 10.6);")
                         .Define("el_final", "return TLorentzVector(p4_ele_px[0], p4_ele_py[0], p4_ele_pz[0], p4_ele_E[0]);")
@@ -641,11 +651,13 @@ int main() {
                             double delta_Q2 = std::log(high_bin/low_bin)/bin_number;
                             int q2bin = std::log(Q2_corr/low_bin)/delta_Q2;
                                 return q2bin;}, {"Q2_corr"})
-                        .Define("Q2W_bin","30*Q2_bin + W_bin");
+                        .Define("Q2W_bin","30*Q2_bin + W_bin")
+                        .Define("el_final_P", "el_final.P()")  // Define new column
+                        .Define("el_final_corr_P", "el_final_corr.P()");  // Define new column
 
-
-    
-    //plotWvsQ2andSector_SaveROOT(init_rdf,"qwerty.root");
+    */
+    //std::cout<<OUTPUT_FOLDER<<std::endl;
+    plotWvsQ2andSector_SaveROOT(init_rdf_MC,"qwerty_MC.root");
     //W_for_each_Q2_bin(init_rdf,"JOPA.root");
     //rotatedY_vs_rotated_x_sectorwise(init_rdf);
 
@@ -661,13 +673,15 @@ int main() {
     //init_rdf.Display({"Q2_bin","W_bin","Q2W_bin"},100)->Print();
     //rotatedY_vs_rotated_x_all_sectors(init_rdf);
     // Print column names
-    std::cout << "Columns in RDataFrame:" << std::endl;
-    for (const auto &col : rdf.GetColumnNames()) {
-        std::cout << col << std::endl;
-    }
+    //std::cout << "Columns in RDataFrame:" << std::endl;
+    //for (const auto &col : rdf.GetColumnNames()) {
+    //    std::cout << col << std::endl;
+    //}
      
     //plot_1d_W(init_rdf);
     //plot_2d_W_vs_QSquared(init_rdf);
+
+    //init_rdf.Display({"el_final_P", "el_final_corr_P"}, 10)->Print();
 
 
     auto end = std::chrono::high_resolution_clock::now(); // END
