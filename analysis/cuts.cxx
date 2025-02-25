@@ -10,6 +10,7 @@
 #include <TH1D.h>
 #include <TH2D.h>
 #include <TKey.h>
+#include <TRandom3.h>
 #include <fstream>
 #include <stdio.h>
 
@@ -370,9 +371,59 @@ inline auto dppC(float Px, float Py, float Pz, int sec, int ivec, int corEl, int
 
     return dp/pp;
 };
+
+
+//smearing
+
+TRandom3 *myMC;  // Needed for smearing
+void fastMC(void){
+        myMC = new TRandom3(0);
+}
+
+
+//New Smearing:
+auto smear_oneFactor = [](const TLorentzVector V4rec){
+	// smear factor:
+	
+	double elTh_indeg = V4rec.Theta() * 57.2958;
+	double sigmaRes = 0;
+ 	const double fp_4[5] = {     2.3762794461143009e+000,
+    -2.8635604070815707e-001,
+     3.8197546356590874e-002,
+    -1.8427728047602948e-003,
+     2.7446233737351622e-005};
+     
+	const double factor = fp_4[0] + fp_4[1]*elTh_indeg + fp_4[2]*elTh_indeg*elTh_indeg + fp_4[3]*elTh_indeg*elTh_indeg*elTh_indeg + fp_4[4]*elTh_indeg*elTh_indeg*elTh_indeg*elTh_indeg;;
+	
+	sigmaRes = 0.008007538378779988 -0.0010764451335380787* elTh_indeg + 6.943332514486485e-05* elTh_indeg * elTh_indeg  -1.1181109847470665e-06* elTh_indeg * elTh_indeg * elTh_indeg ;
+
+    // True generated values (i.e., values of the unsmeared TLorentzVector)
+    double inM = V4rec.M();
+    double gausValue = myMC->Gaus(0,1);
+    double smeared_P  = V4rec.P() +  V4rec.P() * sigmaRes * factor * gausValue;
+    
+//cout<<inM<<endl;
+//    cout<<V4rec.P() * sigmaRes * factor * gausValue << " gaus:"<< gausValue <<endl;   
+    double smeared_Th = V4rec.Theta();
+    double smeared_Phi = V4rec.Phi();
+    
+    TLorentzVector V4_new(V4rec.X(), V4rec.Y(), V4rec.Z(), V4rec.E());
+    
+    V4_new.SetE( TMath::Sqrt( smeared_P*smeared_P + inM*inM )  );
+    V4_new.SetRho( smeared_P );
+    V4_new.SetTheta( smeared_Th );
+    V4_new.SetPhi( smeared_Phi );
+    
+    return V4_new;
+};
+
+
 // sector should be 1:6
 inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData){
-  if (isData == 0) return (TLorentzVector) {ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e)};
+  if (isData == 0) {
+    TLorentzVector V4(ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e));
+    return smear_oneFactor(V4);
+  }
   else{
      auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
      double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
@@ -380,6 +431,7 @@ inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int 
      return elec_corrected;  
   }
 }
+
 
 struct line{
     double k;
