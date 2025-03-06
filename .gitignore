@@ -42,7 +42,7 @@ Test_Notebook.ipynb
 __pycache__/
 Data_Files/Monte_Carlo_SIDIS/Pass2/Simulated_Single_Pion_Channel_epipX_Inbending_With_Dp_Fa18_P2_MC_V3_File_Incomplete.root
 .nfs00000000087342ef00021c35
-/analysis*
+/analysis_out*
 /utils/hipo2root/toConvertAllRunP1.sh
 /utils/toFarm/
 /utils/hipo2root/logs/
