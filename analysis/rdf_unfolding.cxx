@@ -3,7 +3,7 @@
 
 
 /*
-g++ rdf_unfolding.cxx -o rdf_unfolding `root-config --cflags --libs` -I/w/hallb-scshelf2102/clas12/manavb/RooUnfold/src -L/w/hallb-scshelf2102/clas12/manavb/RooUnfold/build -lRooUnfold
+g++ rdf_unfolding.cxx -o executable_rdf_unfolding `root-config --cflags --libs` -I/w/hallb-scshelf2102/clas12/manavb/RooUnfold/src -L/w/hallb-scshelf2102/clas12/manavb/RooUnfold/build -lRooUnfold
 */
 
 #include "RooUnfoldResponse.h"
