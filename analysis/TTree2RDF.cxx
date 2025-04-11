@@ -25,8 +25,8 @@
 
 // Global variables
 int isData = 0;  // 1 for real data, 0 for MC
-bool isBigStatistics = false;
-bool toFarm = false;
+bool isBigStatistics = true;
+bool toFarm = true;
 
 // Determine the output folder
 const std::string farm_out = toFarm ? "/farm_out/" : "/";
@@ -117,7 +117,7 @@ int main() {
 auto rdf_with_entry = rdf.Define("entry", "rdfentry_"); // Define entry column
 auto rdf_filtered = (isData == 0 && !isBigStatistics) 
                     ? rdf_with_entry.Filter("entry < 1000000") 
-                    : ROOT::RDF::RNode(rdf);
+                    : ROOT::RDF::RNode(rdf_with_entry);
 
 
 if (rdf_filtered.HasColumn("dcYZ1")) {
@@ -209,6 +209,7 @@ else {
                         .Define("Q2", "-(el_initial - el_final).M2()")
                         .Define("W", "(el_initial - el_final + proton_initial).M()")
                         .Define("W_gen", "(el_initial - el_final_gen + proton_initial).M()")
+                        .Define("Q2_gen", "-(el_initial - el_final_gen).M2()")
                         .Define("Q2_corr", "-(el_initial - el_final_corr).M2()")
                         .Define("W_corr", "(el_initial - el_final_corr + proton_initial).M()")
                         .Define("W_bin", [](double W_corr) {
@@ -235,8 +236,8 @@ else {
     //save the rdf as a root file
     // Only save standard types
     std::vector<std::string> columns_to_save = {
-    "entry", "el_final_P", "el_final_corr_P",
-    "Q2", "Q2_corr", "W", "W_corr", "W_gen",
+    "el_final_P", "el_final_corr_P",
+    "Q2", "Q2_corr", "Q2_gen", "W", "W_corr", "W_gen",
     "Q2_bin", "W_bin", "Q2W_bin","passesCut"
     // add more as needed, just avoid DCXY or any other struct
     };

@@ -419,17 +419,24 @@ auto smear_oneFactor = [](const TLorentzVector V4rec){
 
 
 // sector should be 1:6
-inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData){
-  if (isData == 0) {
-    TLorentzVector V4(ex, ey, ez, sqrt(ex*ex+ey*ey+ez*ez+m_e*m_e));
-    return smear_oneFactor(V4);
-  }
-  else{
-     auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
-     double energy = sqrt(fe*fe*(ex*ex+ey*ey+ez*ez)+m_e*m_e);
-     TLorentzVector elec_corrected(fe*ex, fe*ey, fe*ez, energy);   
-     return elec_corrected;  
-  }
+inline auto Get4mom_corr(double ex, double ey, double ez, int sec_mom_corr, int isData) {
+    double p_squared = ex * ex + ey * ey + ez * ez;
+
+    // Handle zero or near-zero momentum safely
+    if (p_squared < 1e-6) {
+        return TLorentzVector(0, 0, 0, 0);  // Return a default zero 4-vector
+    }
+
+    if (isData == 0) {
+        TLorentzVector V4(ex, ey, ez, sqrt(p_squared + m_e * m_e));
+        return smear_oneFactor(V4);  // safe since V4 has valid magnitude
+    } else {
+        auto fe = dppC(ex, ey, ez, (int)lrint(sec_mom_corr), 0, 1, 0, 0, 0) + 1;
+        double corrected_p_squared = fe * fe * p_squared;
+        double energy = sqrt(corrected_p_squared + m_e * m_e);
+        TLorentzVector elec_corrected(fe * ex, fe * ey, fe * ez, energy);
+        return elec_corrected;
+    }
 }
 
 
