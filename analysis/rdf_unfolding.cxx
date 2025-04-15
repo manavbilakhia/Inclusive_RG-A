@@ -30,7 +30,6 @@ int main() {
 
     ROOT::RDataFrame df("T", filePath);
 
-    // Define bin edges from your table
     std::vector<double> Q2_bin_edges = {2.557, 2.990, 3.497, 4.089, 4.782, 5.592, 6.539, 7.646, 8.942, 10.456};
     std::vector<double> W_bin_edges = {
         1.125, 1.175, 1.225, 1.275, 1.325, 1.375, 1.425,
@@ -44,7 +43,6 @@ int main() {
     const int Q2_bins = Q2_bin_edges.size() - 1;
     const int total_bins = W_bins * Q2_bins;
 
-    // Define binning function for RDataFrame
     auto get_bin_index = [](double val, const std::vector<double>& edges) {
         auto it = std::upper_bound(edges.begin(), edges.end(), val);
         int bin = std::distance(edges.begin(), it) - 1;
@@ -76,34 +74,25 @@ int main() {
         else response.Miss(truthBin);
     }, {"Q2W_bin", "Q2W_gen_bin", "passesCut"});
 
-    // Reco histogram
+    // Histogram for reco (used for unfolding and plotting)
     auto hReco = df_binned.Filter("passesCut")
-    .Histo1D({"hReco", "Reco Q2-W Bin", total_bins, 0.0, static_cast<double>(total_bins)}, "Q2W_bin");
+        .Histo1D({"hReco", "Reco Q2-W Bin", total_bins, 0.0, static_cast<double>(total_bins)}, "Q2W_bin");
 
-    // Unfold
+    // Do unfolding
     RooUnfoldBayes unfold(&response, hReco.GetPtr(), 4);
     TH1D* hUnfold = (TH1D*) unfold.Hunfold(RooUnfolding::kErrors);
 
-    // Response matrix cropped view
-    TH2D* hResponse = (TH2D*)response.Hresponse();
-    hResponse->GetXaxis()->SetRangeUser(0, 600);
-    hResponse->GetYaxis()->SetRangeUser(0, 600);
-    TCanvas* cResponse = new TCanvas("cResponse", "Response Matrix", 600, 600);
-    hResponse->Draw("COLZ");
-    cResponse->SaveAs("response_matrix_2D.png");
+    // Plot: Reco vs Truth bin index
+    TH2D* hRecoVsTruthBin = new TH2D("hRecoVsTruthBin", "Reco vs Truth Bins;Truth bin;Reco bin",
+                                     300, 0, 300, 300, 0, 300);
+    df_binned.Foreach([&hRecoVsTruthBin](int reco, int truth) {
+        hRecoVsTruthBin->Fill(truth, reco);
+    }, {"Q2W_bin", "Q2W_gen_bin"});
+    TCanvas* cRecoTruth = new TCanvas("cRecoTruth", "Reco vs Truth Bins", 700, 600);
+    hRecoVsTruthBin->Draw("COLZ");
+    cRecoTruth->SaveAs("RecoVsTruth_Q2Wbin_AllQ2.png");
 
-    // 1D unfolded W for Q2_bin == 0
-    TH1D* hUnfolded1D_W = new TH1D("hUnfolded1D_W", "Unfolded W for Q^{2} bin 0;W (GeV);Events", W_bins, &W_bin_edges[0]);
-    for (int wbin = 0; wbin < W_bins; ++wbin) {
-        hUnfolded1D_W->SetBinContent(wbin + 1, hUnfold->GetBinContent(wbin + 1));
-        hUnfolded1D_W->SetBinError(wbin + 1, hUnfold->GetBinError(wbin + 1));
-    }
-
-    TCanvas* cW = new TCanvas("cW", "Unfolded W in Q2 bin 0", 800, 600);
-    hUnfolded1D_W->Draw("E1");
-    cW->SaveAs("unfolded_W_Q2bin0.png");
-
-    // W_rec vs W_gen for Q2_bin == 0
+    // Plot: W_rec vs W_gen for Q2_bin == 0
     auto df_q2bin0 = df_binned.Filter("Q2_bin == 0 && W_bin >= 0 && W_gen_bin >= 0");
     TH2D* hWrecVsWgen = new TH2D("hWrecVsWgen", "W_{rec} vs W_{gen} for Q^{2} bin 0;W_{gen} (GeV);W_{rec} (GeV)",
                                  52, 1.0, 2.6, 52, 1.0, 2.6);
@@ -114,26 +103,39 @@ int main() {
     hWrecVsWgen->Draw("COLZ");
     cWrecGen->SaveAs("Wrec_vs_Wgen_Q2bin0.png");
 
-    // Reco vs truth bin index (0–300)
-    TH2D* hRecoVsTruthBin = new TH2D("hRecoVsTruthBin", "Reco vs Truth Bins;Truth bin;Reco bin",
-                                     300, 0, 300, 300, 0, 300);
-    df_binned.Foreach([&hRecoVsTruthBin](int reco, int truth) {
-        hRecoVsTruthBin->Fill(truth, reco);
-    }, {"Q2W_bin", "Q2W_gen_bin"});
-    TCanvas* cRecoTruth = new TCanvas("cRecoTruth", "Reco vs Truth Bins", 700, 600);
-    hRecoVsTruthBin->Draw("COLZ");
-    cRecoTruth->SaveAs("RecoVsTruth_Q2Wbin_AllQ2.png");
+    // Plot: All 6 FD sectorwise reco histograms on one canvas
+    TCanvas* cAllSectors = new TCanvas("cAllSectors", "Reco Q2W_bin by Sector", 1800, 1200);
+    cAllSectors->Divide(3, 2);  // 3 columns × 2 rows
 
-    // Save everything
+    std::vector<TH1D*> sectorHistos;
+    for (int sec = 1; sec <= 6; ++sec) {
+        auto hRecoSec = df_binned.Filter(Form("el_sector == %d && passesCut", sec))
+            .Histo1D(
+                {Form("hReco_sec%d", sec),
+                 Form("Reco Q2W_bin [Sector %d];Q2W_bin index;Counts", sec),
+                 total_bins, 0.0, static_cast<double>(total_bins)},
+                "Q2W_bin"
+            );
+
+        TH1D* h = (TH1D*) hRecoSec->Clone(Form("hReco_sec%d_clone", sec));
+        sectorHistos.push_back(h);
+
+        cAllSectors->cd(sec);
+        h->Draw("E1");
+    }
+
+    cAllSectors->SaveAs("Reco_Distribution_Q2Wbin_AllSectors.png");
+
+    // Save histograms
     TFile out("unfolded_output_2D.root", "RECREATE");
-    hUnfold->Write("hUnfolded");
     hReco->Write("hReco");
-    hResponse->Write("hResponse");
-    hUnfolded1D_W->Write("hUnfolded1D_W_Q2bin0");
-    hWrecVsWgen->Write("hWrec_vs_Wgen_Q2bin0");
+    hUnfold->Write("hUnfolded");
     hRecoVsTruthBin->Write("hRecoVsTruthBin_AllQ2");
+    hWrecVsWgen->Write("hWrec_vs_Wgen_Q2bin0");
+    for (auto& h : sectorHistos)
+        h->Write();
     out.Close();
 
-    cout << "Unfolding and plotting complete!" << endl;
+    cout << "Unfolding complete. All plots and histograms saved!" << endl;
     return 0;
 }

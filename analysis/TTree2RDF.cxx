@@ -236,7 +236,7 @@ else {
     //save the rdf as a root file
     // Only save standard types
     std::vector<std::string> columns_to_save = {
-    "el_final_P", "el_final_corr_P",
+    "el_final_P","el_sector", "el_final_corr_P",
     "Q2", "Q2_corr", "Q2_gen", "W", "W_corr", "W_gen",
     "Q2_bin", "W_bin", "Q2W_bin","passesCut"
     // add more as needed, just avoid DCXY or any other struct
